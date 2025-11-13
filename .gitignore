@@ -1,0 +1,14 @@
+# Giữ file kết nối DB chỉ local, không push lên repo
+/main/database_connection.py
+
+# Những mục Python phổ biến
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual envs / config cá nhân
+venv/
+env/
+.env
+.vscode/
