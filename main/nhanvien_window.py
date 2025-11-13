@@ -612,15 +612,179 @@ class NhanVien:
         ).pack(pady=20)
     
     def view_invoice_history(self):
-        """Xem lịch sử hóa đơn"""
+        """Xem lịch sử hóa đơn (Bản thân đã lập)"""
         self.clear_content()
+        
         tk.Label(
             self.content_frame,
-            text="LỊCH SỬ HÓA ĐƠN",
+            text="LỊCH SỬ HÓA ĐƠN (DO BẠN LẬP)",
             font=("Arial", 18, "bold"),
-            bg=self.bg_color
-        ).pack(pady=20)
+            bg=self.bg_color,
+            fg="#003366"
+        ).pack(pady=10)
+        
+        # Frame chứa các nút
+        btn_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        btn_frame.pack(pady=10)
+        
+        tk.Button(
+            btn_frame,
+            text="🔍 Xem chi tiết",
+            font=("Arial", 11),
+            bg=self.btn_color,
+            fg="white",
+            command=self.show_invoice_details
+        ).pack(side=tk.LEFT, padx=10)
+        
+        tk.Button(
+            btn_frame,
+            text="🔄 Tải lại",
+            font=("Arial", 11),
+            bg="#17a2b8",
+            fg="white",
+            command=self.load_invoice_history
+        ).pack(side=tk.LEFT, padx=10)
+        
+        # Frame bảng
+        table_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        table_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        
+        # Treeview (Bảng hiển thị)
+        columns = ("Mã HĐ", "Khách hàng", "Ngày lập", "Tổng tiền", "Trạng thái")
+        self.invoice_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=25)
+        
+        widths = {"Mã HĐ": 80, "Khách hàng": 250, "Ngày lập": 150, "Tổng tiền": 150, "Trạng thái": 100}
+        for col in columns:
+            self.invoice_tree.heading(col, text=col)
+            self.invoice_tree.column(col, width=widths[col], anchor="center")
+        
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.invoice_tree.yview)
+        self.invoice_tree.configure(yscrollcommand=scrollbar.set)
+        
+        self.invoice_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Tải dữ liệu
+        self.load_invoice_history()
     
+    
+
+    #---------------------------------------------------------
+    def load_invoice_history(self):
+        """Tải danh sách hóa đơn do nhân viên này lập"""
+        for item in self.invoice_tree.get_children():
+            self.invoice_tree.delete(item)
+            
+        # SQL Server dùng TOP 100 thay vì LIMIT
+        # SQL Server dùng FORMAT()
+        query = """
+            SELECT TOP 100
+                hd.MaHoaDon,
+                kh.HoTen as TenKhachHang,
+                FORMAT(hd.NgayLap, 'dd/MM/yyyy HH:mm') as NgayLap,
+                hd.TongThanhToan,
+                hd.TrangThai
+            FROM HoaDon hd
+            JOIN KhachHang kh ON hd.MaKhachHang = kh.MaKhachHang
+            WHERE hd.MaNguoiDung = %s
+            ORDER BY hd.MaHoaDon DESC
+        """
+        try:
+            invoices = self.db.fetch_all(query, (self.user_info['MaNguoiDung'],))
+            
+            if invoices:
+                for inv in invoices:
+                    self.invoice_tree.insert("", tk.END, values=(
+                        inv['MaHoaDon'],
+                        inv['TenKhachHang'],
+                        inv['NgayLap'],
+                        f"{inv['TongThanhToan']:,.0f}",
+                        inv['TrangThai']
+                    ))
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể tải lịch sử hóa đơn: {e}")
+
+    def show_invoice_details(self):
+        """Hiển thị chi tiết một hóa đơn trong cửa sổ pop-up (cách không tối ưu)"""
+        selected = self.invoice_tree.selection()
+        if not selected:
+            messagebox.showwarning("Cảnh báo", "Vui lòng chọn một hóa đơn để xem!")
+            return
+            
+        item = self.invoice_tree.item(selected[0])
+        invoice_id = item['values'][0]
+        
+        # Tạo cửa sổ pop-up
+        dialog = tk.Toplevel(self.window)
+        dialog.title(f"Chi tiết Hóa đơn #{invoice_id}")
+        dialog.geometry("700x500")
+        dialog.resizable(False, False)
+        
+        # --- 1. Hiển thị Sản phẩm (Xe máy) ---
+        sp_frame = tk.LabelFrame(dialog, text="Chi tiết Sản phẩm (Xe máy)", 
+                                 font=("Arial", 12, "bold"), padx=10, pady=10)
+        sp_frame.pack(fill=tk.X, expand=True, padx=20, pady=10)
+        
+        cols_sp = ("Tên sản phẩm", "Số lượng", "Đơn giá", "Thành tiền")
+        sp_tree = ttk.Treeview(sp_frame, columns=cols_sp, show="headings", height=5)
+        for col in cols_sp: sp_tree.heading(col, text=col)
+        sp_tree.pack(fill=tk.BOTH, expand=True)
+
+        # Chạy SQL 1: Lấy sản phẩm
+        query_sp = """
+            SELECT sp.TenSanPham, cthd.SoLuong, cthd.DonGia
+            FROM ChiTietHoaDonSanPham cthd
+            JOIN SanPham sp ON cthd.MaSanPham = sp.MaSanPham
+            WHERE cthd.MaHoaDon = %s
+        """
+        products = self.db.fetch_all(query_sp, (invoice_id,))
+        if products:
+            for p in products:
+                thanh_tien = p['SoLuong'] * p['DonGia']
+                sp_tree.insert("", tk.END, values=(
+                    p['TenSanPham'], 
+                    p['SoLuong'], 
+                    f"{p['DonGia']:,.0f}", 
+                    f"{thanh_tien:,.0f}"
+                ))
+
+        # --- 2. Hiển thị Phụ tùng ---
+        pt_frame = tk.LabelFrame(dialog, text="Chi tiết Phụ tùng & Dịch vụ", 
+                                 font=("Arial", 12, "bold"), padx=10, pady=10)
+        pt_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        
+        cols_pt = ("Tên phụ tùng", "Số lượng", "Đơn giá", "Thành tiền")
+        pt_tree = ttk.Treeview(pt_frame, columns=cols_pt, show="headings", height=5)
+        for col in cols_pt: pt_tree.heading(col, text=col)
+        pt_tree.pack(fill=tk.BOTH, expand=True)
+
+        # Chạy SQL 2: Lấy phụ tùng (Cách không tối ưu là chạy 2 query riêng)
+        query_pt = """
+            SELECT pt.TenPhuTung, cthd.SoLuong, cthd.DonGia
+            FROM ChiTietHoaDonPhuTung cthd
+            JOIN PhuTung pt ON cthd.MaPhuTung = pt.MaPhuTung
+            WHERE cthd.MaHoaDon = %s
+        """
+        parts = self.db.fetch_all(query_pt, (invoice_id,))
+        if parts:
+            for p in parts:
+                thanh_tien = p['SoLuong'] * p['DonGia']
+                pt_tree.insert("", tk.END, values=(
+                    p['TenPhuTung'], 
+                    p['SoLuong'], 
+                    f"{p['DonGia']:,.0f}", 
+                    f"{thanh_tien:,.0f}"
+                ))
+
+        tk.Button(
+            dialog, 
+            text="Đóng", 
+            font=("Arial", 11, "bold"), 
+            bg="#dc3545", 
+            fg="white", 
+            command=dialog.destroy
+        ).pack(pady=10)
+
     def logout(self):
         """Đăng xuất"""
         if messagebox.askyesno("Xác nhận", "Bạn có chắc muốn đăng xuất?"):
