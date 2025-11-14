@@ -4,7 +4,7 @@
 # =================================================================
 
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import messagebox, ttk, simpledialog
 from database_connection import DatabaseConnection
 from datetime import datetime
 
@@ -124,7 +124,7 @@ class NhanVien:
         # Title
         tk.Label(
             self.content_frame,
-            text="TẠO HÓA ĐƠN BÁN HÀNG",
+            text="TẠO HÓA ĐƠN BÁN HÀNG & DỊCH VỤ",
             font=("Arial", 18, "bold"),
             bg=self.bg_color,
             fg="#003366"
@@ -138,12 +138,11 @@ class NhanVien:
         left_frame = tk.Frame(main_frame, bg=self.bg_color)
         left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10)
         
-        # Thông tin khách hàng
+        # Thông tin khách hàng (Giữ nguyên)
         customer_frame = tk.LabelFrame(left_frame, text="Thông tin khách hàng", 
                                        font=("Arial", 12, "bold"), bg="white", padx=10, pady=10)
         customer_frame.pack(fill=tk.X, pady=10)
         
-        # SĐT khách hàng
         tk.Label(customer_frame, text="Số điện thoại:", font=("Arial", 11), bg="white").grid(row=0, column=0, sticky="w", pady=5)
         self.phone_entry = tk.Entry(customer_frame, font=("Arial", 11), width=20)
         self.phone_entry.grid(row=0, column=1, pady=5, padx=5)
@@ -166,33 +165,53 @@ class NhanVien:
             command=self.add_new_customer
         ).grid(row=0, column=3, pady=5, padx=5)
         
-        # Thông tin khách
         tk.Label(customer_frame, text="Họ tên:", font=("Arial", 11), bg="white").grid(row=1, column=0, sticky="w", pady=5)
         self.customer_name_var = tk.StringVar()
         tk.Entry(customer_frame, textvariable=self.customer_name_var, font=("Arial", 11), width=40, state="readonly").grid(row=1, column=1, columnspan=3, pady=5, padx=5, sticky="w")
         
-        # Chọn sản phẩm
-        product_frame = tk.LabelFrame(left_frame, text="Chọn sản phẩm", 
+        # --- NÂNG CẤP: SỬ DỤNG TAB CONTROL ---
+        product_frame = tk.LabelFrame(left_frame, text="Chọn sản phẩm / Phụ tùng", 
                                       font=("Arial", 12, "bold"), bg="white", padx=10, pady=10)
         product_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+
+        self.tab_control = ttk.Notebook(product_frame)
         
-        # Danh sách sản phẩm
-        columns = ("Mã", "Tên sản phẩm", "Hãng", "Giá bán", "Tồn kho")
-        self.product_tree = ttk.Treeview(product_frame, columns=columns, show="headings", height=15)
+        self.tab_products = ttk.Frame(self.tab_control)
+        self.tab_parts = ttk.Frame(self.tab_control)
         
-        for col in columns:
+        self.tab_control.add(self.tab_products, text='   🏍️ Xe máy (Sản phẩm)   ')
+        self.tab_control.add(self.tab_parts, text='   🔧 Phụ tùng & Dịch vụ   ')
+        
+        self.tab_control.pack(fill=tk.BOTH, expand=True)
+
+        # Tab 1: Danh sách sản phẩm (Xe máy)
+        columns_sp = ("Mã", "Tên sản phẩm", "Hãng", "Giá bán", "Tồn kho")
+        self.product_tree = ttk.Treeview(self.tab_products, columns=columns_sp, show="headings", height=15)
+        for col in columns_sp:
             self.product_tree.heading(col, text=col)
-            if col == "Tên sản phẩm":
-                self.product_tree.column(col, width=250)
-            else:
-                self.product_tree.column(col, width=100, anchor="center")
+            w = 250 if col == "Tên sản phẩm" else 100
+            self.product_tree.column(col, width=w, anchor="center" if col != "Tên sản phẩm" else "w")
         
-        scrollbar = ttk.Scrollbar(product_frame, orient="vertical", command=self.product_tree.yview)
-        self.product_tree.configure(yscrollcommand=scrollbar.set)
-        
+        scrollbar_sp = ttk.Scrollbar(self.tab_products, orient="vertical", command=self.product_tree.yview)
+        self.product_tree.configure(yscrollcommand=scrollbar_sp.set)
         self.product_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        scrollbar_sp.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Tab 2: Danh sách phụ tùng
+        columns_pt = ("Mã", "Tên phụ tùng", "Loại", "Giá bán", "Tồn kho")
+        self.part_tree = ttk.Treeview(self.tab_parts, columns=columns_pt, show="headings", height=15)
+        for col in columns_pt:
+            self.part_tree.heading(col, text=col)
+            w = 250 if col == "Tên phụ tùng" else 100
+            self.part_tree.column(col, width=w, anchor="center" if col != "Tên phụ tùng" else "w")
+
+        scrollbar_pt = ttk.Scrollbar(self.tab_parts, orient="vertical", command=self.part_tree.yview)
+        self.part_tree.configure(yscrollcommand=scrollbar_pt.set)
+        self.part_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar_pt.pack(side=tk.RIGHT, fill=tk.Y)
         
+        # --- KẾT THÚC NÂNG CẤP ---
+
         # Nút thêm vào giỏ
         tk.Button(
             left_frame,
@@ -203,10 +222,11 @@ class NhanVien:
             command=self.add_to_cart
         ).pack(pady=10)
         
-        # Load sản phẩm
+        # Load sản phẩm và phụ tùng
         self.load_products()
+        self.load_parts()
         
-        # Cột phải - Giỏ hàng
+        # Cột phải - Giỏ hàng (Giữ nguyên)
         right_frame = tk.Frame(main_frame, bg=self.bg_color, width=450)
         right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, padx=10)
         right_frame.pack_propagate(False)
@@ -215,18 +235,16 @@ class NhanVien:
                                    font=("Arial", 12, "bold"), bg="white", padx=10, pady=10)
         cart_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Bảng giỏ hàng
         cart_columns = ("Tên", "SL", "Đơn giá", "Thành tiền")
         self.cart_tree = ttk.Treeview(cart_frame, columns=cart_columns, show="headings", height=12)
         
         widths = {"Tên": 180, "SL": 50, "Đơn giá": 100, "Thành tiền": 100}
         for col in cart_columns:
             self.cart_tree.heading(col, text=col)
-            self.cart_tree.column(col, width=widths[col], anchor="center")
+            self.cart_tree.column(col, width=widths[col], anchor="center" if col != "Tên" else "w")
         
         self.cart_tree.pack(fill=tk.BOTH, expand=True)
         
-        # Nút xóa khỏi giỏ
         tk.Button(
             cart_frame,
             text="🗑️ Xóa khỏi giỏ",
@@ -236,7 +254,6 @@ class NhanVien:
             command=self.remove_from_cart
         ).pack(pady=5)
         
-        # Tổng tiền
         total_frame = tk.Frame(right_frame, bg="white", bd=2, relief=tk.RAISED)
         total_frame.pack(fill=tk.X, pady=10)
         
@@ -244,7 +261,6 @@ class NhanVien:
         self.total_label = tk.Label(total_frame, text="0 VNĐ", font=("Arial", 18, "bold"), bg="white", fg="red")
         self.total_label.pack(pady=5)
         
-        # Nút thanh toán
         tk.Button(
             right_frame,
             text="💳 THANH TOÁN",
@@ -278,6 +294,31 @@ class NhanVien:
                 p['SoLuongTon']
             ))
     
+    def load_parts(self):
+        """Tải danh sách phụ tùng còn hàng"""
+        for item in self.part_tree.get_children():
+            self.part_tree.delete(item)
+        
+        query = """
+            SELECT pt.MaPhuTung, pt.TenPhuTung, lpt.TenLoaiPhuTung, pt.GiaBan, pt.SoLuongTon
+            FROM PhuTung pt
+            LEFT JOIN LoaiPhuTung lpt ON pt.MaLoaiPhuTung = lpt.MaLoaiPhuTung
+            WHERE pt.TrangThai = 'ConHang' AND pt.SoLuongTon > 0
+            ORDER BY pt.TenPhuTung
+        """
+        parts = self.db.fetch_all(query)
+        
+        if parts:
+            for p in parts:
+                self.part_tree.insert("", tk.END, values=(
+                    p['MaPhuTung'],
+                    p['TenPhuTung'],
+                    p['TenLoaiPhuTung'] or "N/A",
+                    f"{p['GiaBan']:,.0f}",
+                    p['SoLuongTon']
+                ))
+
+
     def search_customer_by_phone(self):
         """Tìm khách hàng theo SĐT"""
         phone = self.phone_entry.get().strip()
@@ -363,41 +404,76 @@ class NhanVien:
         ).grid(row=len(fields)+1, column=0, columnspan=2, pady=20)
     
     def add_to_cart(self):
-        """Thêm sản phẩm vào giỏ"""
-        selected = self.product_tree.selection()
-        if not selected:
-            messagebox.showwarning("Cảnh báo", "Vui lòng chọn sản phẩm!")
-            return
-        
-        item = self.product_tree.item(selected[0])
-        values = item['values']
-        
-        # Hỏi số lượng
-        quantity = tk.simpledialog.askinteger("Số lượng", "Nhập số lượng:", minvalue=1, maxvalue=int(values[4]))
-        
-        if quantity:
-            # Kiểm tra tồn kho
-            if quantity > int(values[4]):
-                messagebox.showwarning("Cảnh báo", "Số lượng vượt quá tồn kho!")
-                return
+        """Thêm sản phẩm hoặc phụ tùng vào giỏ"""
+        try:
+            current_tab = self.tab_control.index(self.tab_control.select())
             
-            product_id = values[0]
+            # current_tab == 0 là tab Xe máy
+            # current_tab == 1 là tab Phụ tùng
+            
+            if current_tab == 0:
+                tree = self.product_tree
+                item_type = 'SanPham'
+                selected = tree.selection()
+                if not selected:
+                    messagebox.showwarning("Cảnh báo", "Vui lòng chọn một SẢN PHẨM (XE MÁY)!")
+                    return
+            elif current_tab == 1:
+                tree = self.part_tree
+                item_type = 'PhuTung'
+                selected = tree.selection()
+                if not selected:
+                    messagebox.showwarning("Cảnh báo", "Vui lòng chọn một PHỤ TÙNG!")
+                    return
+            else:
+                return
+
+            item = tree.item(selected[0])
+            values = item['values']
+            
+            item_id = values[0]
             name = values[1]
             price = float(values[3].replace(',', ''))
-            total = price * quantity
+            stock = int(values[4])
             
-            # Thêm vào giỏ
-            self.cart_items.append({
-                'id': product_id,
-                'name': name,
-                'quantity': quantity,
-                'price': price,
-                'total': total,
-                'type': 'SanPham'
-            })
+            # Kiểm tra xem đã có trong giỏ chưa
+            for cart_item in self.cart_items:
+                if cart_item['id'] == item_id and cart_item['type'] == item_type:
+                    messagebox.showwarning("Thông báo", f"'{name}' đã có trong giỏ hàng.")
+                    return
+
+            # Hỏi số lượng
+            quantity = tk.simpledialog.askinteger(
+                "Số lượng", 
+                f"Nhập số lượng cho:\n{name}\n(Tồn kho: {stock})", 
+                minvalue=1, 
+                maxvalue=stock
+            )
             
-            self.update_cart_display()
+            if quantity:
+                # Kiểm tra tồn kho (đã được xử lý bởi maxvalue, nhưng cẩn thận vẫn hơn)
+                if quantity > stock:
+                    messagebox.showwarning("Cảnh báo", "Số lượng vượt quá tồn kho!")
+                    return
+                
+                total = price * quantity
+                
+                # Thêm vào giỏ
+                self.cart_items.append({
+                    'id': item_id,
+                    'name': name,
+                    'quantity': quantity,
+                    'price': price,
+                    'total': total,
+                    'type': item_type  # << Rất quan trọng
+                })
+                
+                self.update_cart_display()
+        
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Có lỗi xảy ra khi thêm vào giỏ: {e}")
     
+
     def remove_from_cart(self):
         """Xóa sản phẩm khỏi giỏ"""
         selected = self.cart_tree.selection()
@@ -429,8 +505,9 @@ class NhanVien:
         # Cập nhật tổng tiền
         self.total_label.config(text=f"{total:,.0f} VNĐ")
     
+   
     def process_payment(self):
-        """Xử lý thanh toán"""
+        """Xử lý thanh toán (Hỗ trợ cả Sản phẩm và Phụ tùng)"""
         if not self.cart_items:
             messagebox.showwarning("Cảnh báo", "Giỏ hàng trống!")
             return
@@ -442,25 +519,41 @@ class NhanVien:
         # Tính tổng tiền
         total = sum(item['total'] for item in self.cart_items)
         
-        # Tạo hóa đơn
+        # --- Tạo hóa đơn ---
+        # (Giả sử thanh toán đủ, nếu cần trả góp/ghi nợ, bạn cần thêm logic ở đây)
         query = """
             INSERT INTO HoaDon (MaKhachHang, MaNguoiDung, TongTien, TongThanhToan, TienDaTra, PhuongThucThanhToan, TrangThai)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
-        invoice_id = self.db.execute_query(
-            query,
-            (self.current_customer['MaKhachHang'], self.user_info['MaNguoiDung'], 
-             total, total, total, 'TienMat', 'DaThanhToan')
-        )
-        
-        if invoice_id:
-            # Thêm chi tiết hóa đơn
+        try:
+            invoice_id = self.db.execute_query(
+                query,
+                (self.current_customer['MaKhachHang'], self.user_info['MaNguoiDung'], 
+                 total, total, total, 'TienMat', 'DaThanhToan')
+            )
+            
+            if not invoice_id:
+                messagebox.showerror("Lỗi", "Không thể tạo hóa đơn! (ID trả về null)")
+                return
+
+            # --- Thêm chi tiết hóa đơn (Phần nâng cấp) ---
             for item in self.cart_items:
-                detail_query = """
-                    INSERT INTO ChiTietHoaDonSanPham (MaHoaDon, MaSanPham, SoLuong, DonGia)
-                    VALUES (%s, %s, %s, %s)
-                """
-                self.db.execute_query(detail_query, (invoice_id, item['id'], item['quantity'], item['price']))
+                if item['type'] == 'SanPham':
+                    detail_query = """
+                        INSERT INTO ChiTietHoaDonSanPham (MaHoaDon, MaSanPham, SoLuong, DonGia)
+                        VALUES (%s, %s, %s, %s)
+                    """
+                    params = (invoice_id, item['id'], item['quantity'], item['price'])
+                
+                elif item['type'] == 'PhuTung':
+                    detail_query = """
+                        INSERT INTO ChiTietHoaDonPhuTung (MaHoaDon, MaPhuTung, SoLuong, DonGia)
+                        VALUES (%s, %s, %s, %s)
+                    """
+                    params = (invoice_id, item['id'], item['quantity'], item['price'])
+                
+                # Thực thi trigger (trừ tồn kho) sẽ diễn ra ở đây
+                self.db.execute_query(detail_query, params)
             
             messagebox.showinfo("Thành công", f"Tạo hóa đơn thành công!\nMã hóa đơn: {invoice_id}")
             
@@ -470,10 +563,17 @@ class NhanVien:
             self.customer_name_var.set("")
             self.phone_entry.delete(0, tk.END)
             delattr(self, 'current_customer')
+            
+            # Tải lại cả sản phẩm và phụ tùng (vì tồn kho đã thay đổi)
             self.load_products()
-        else:
-            messagebox.showerror("Lỗi", "Không thể tạo hóa đơn!")
+            self.load_parts()
+        
+        except Exception as e:
+            # Nếu có lỗi (ví dụ trigger báo hết hàng), ta cần báo lỗi
+            # Lưu ý: Cần có cơ chế Rollback nếu 1 chi tiết bị lỗi
+            messagebox.showerror("Lỗi", f"Không thể tạo hóa đơn! \n{e}")
     
+
     def show_service_screen(self):
         """Màn hình dịch vụ sửa chữa"""
         self.clear_content()
@@ -489,6 +589,7 @@ class NhanVien:
             font=("Arial", 12),
             bg=self.bg_color
         ).pack(pady=20)
+    
     
     def view_products(self):
         """Xem danh sách sản phẩm"""
@@ -511,15 +612,179 @@ class NhanVien:
         ).pack(pady=20)
     
     def view_invoice_history(self):
-        """Xem lịch sử hóa đơn"""
+        """Xem lịch sử hóa đơn (Bản thân đã lập)"""
         self.clear_content()
+        
         tk.Label(
             self.content_frame,
-            text="LỊCH SỬ HÓA ĐƠN",
+            text="LỊCH SỬ HÓA ĐƠN (DO BẠN LẬP)",
             font=("Arial", 18, "bold"),
-            bg=self.bg_color
-        ).pack(pady=20)
+            bg=self.bg_color,
+            fg="#003366"
+        ).pack(pady=10)
+        
+        # Frame chứa các nút
+        btn_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        btn_frame.pack(pady=10)
+        
+        tk.Button(
+            btn_frame,
+            text="🔍 Xem chi tiết",
+            font=("Arial", 11),
+            bg=self.btn_color,
+            fg="white",
+            command=self.show_invoice_details
+        ).pack(side=tk.LEFT, padx=10)
+        
+        tk.Button(
+            btn_frame,
+            text="🔄 Tải lại",
+            font=("Arial", 11),
+            bg="#17a2b8",
+            fg="white",
+            command=self.load_invoice_history
+        ).pack(side=tk.LEFT, padx=10)
+        
+        # Frame bảng
+        table_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        table_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        
+        # Treeview (Bảng hiển thị)
+        columns = ("Mã HĐ", "Khách hàng", "Ngày lập", "Tổng tiền", "Trạng thái")
+        self.invoice_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=25)
+        
+        widths = {"Mã HĐ": 80, "Khách hàng": 250, "Ngày lập": 150, "Tổng tiền": 150, "Trạng thái": 100}
+        for col in columns:
+            self.invoice_tree.heading(col, text=col)
+            self.invoice_tree.column(col, width=widths[col], anchor="center")
+        
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.invoice_tree.yview)
+        self.invoice_tree.configure(yscrollcommand=scrollbar.set)
+        
+        self.invoice_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Tải dữ liệu
+        self.load_invoice_history()
     
+    
+
+    #---------------------------------------------------------
+    def load_invoice_history(self):
+        """Tải danh sách hóa đơn do nhân viên này lập"""
+        for item in self.invoice_tree.get_children():
+            self.invoice_tree.delete(item)
+            
+        # SQL Server dùng TOP 100 thay vì LIMIT
+        # SQL Server dùng FORMAT()
+        query = """
+            SELECT TOP 100
+                hd.MaHoaDon,
+                kh.HoTen as TenKhachHang,
+                FORMAT(hd.NgayLap, 'dd/MM/yyyy HH:mm') as NgayLap,
+                hd.TongThanhToan,
+                hd.TrangThai
+            FROM HoaDon hd
+            JOIN KhachHang kh ON hd.MaKhachHang = kh.MaKhachHang
+            WHERE hd.MaNguoiDung = %s
+            ORDER BY hd.MaHoaDon DESC
+        """
+        try:
+            invoices = self.db.fetch_all(query, (self.user_info['MaNguoiDung'],))
+            
+            if invoices:
+                for inv in invoices:
+                    self.invoice_tree.insert("", tk.END, values=(
+                        inv['MaHoaDon'],
+                        inv['TenKhachHang'],
+                        inv['NgayLap'],
+                        f"{inv['TongThanhToan']:,.0f}",
+                        inv['TrangThai']
+                    ))
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể tải lịch sử hóa đơn: {e}")
+
+    def show_invoice_details(self):
+        """Hiển thị chi tiết một hóa đơn trong cửa sổ pop-up (cách không tối ưu)"""
+        selected = self.invoice_tree.selection()
+        if not selected:
+            messagebox.showwarning("Cảnh báo", "Vui lòng chọn một hóa đơn để xem!")
+            return
+            
+        item = self.invoice_tree.item(selected[0])
+        invoice_id = item['values'][0]
+        
+        # Tạo cửa sổ pop-up
+        dialog = tk.Toplevel(self.window)
+        dialog.title(f"Chi tiết Hóa đơn #{invoice_id}")
+        dialog.geometry("700x500")
+        dialog.resizable(False, False)
+        
+        # --- 1. Hiển thị Sản phẩm (Xe máy) ---
+        sp_frame = tk.LabelFrame(dialog, text="Chi tiết Sản phẩm (Xe máy)", 
+                                 font=("Arial", 12, "bold"), padx=10, pady=10)
+        sp_frame.pack(fill=tk.X, expand=True, padx=20, pady=10)
+        
+        cols_sp = ("Tên sản phẩm", "Số lượng", "Đơn giá", "Thành tiền")
+        sp_tree = ttk.Treeview(sp_frame, columns=cols_sp, show="headings", height=5)
+        for col in cols_sp: sp_tree.heading(col, text=col)
+        sp_tree.pack(fill=tk.BOTH, expand=True)
+
+        # Chạy SQL 1: Lấy sản phẩm
+        query_sp = """
+            SELECT sp.TenSanPham, cthd.SoLuong, cthd.DonGia
+            FROM ChiTietHoaDonSanPham cthd
+            JOIN SanPham sp ON cthd.MaSanPham = sp.MaSanPham
+            WHERE cthd.MaHoaDon = %s
+        """
+        products = self.db.fetch_all(query_sp, (invoice_id,))
+        if products:
+            for p in products:
+                thanh_tien = p['SoLuong'] * p['DonGia']
+                sp_tree.insert("", tk.END, values=(
+                    p['TenSanPham'], 
+                    p['SoLuong'], 
+                    f"{p['DonGia']:,.0f}", 
+                    f"{thanh_tien:,.0f}"
+                ))
+
+        # --- 2. Hiển thị Phụ tùng ---
+        pt_frame = tk.LabelFrame(dialog, text="Chi tiết Phụ tùng & Dịch vụ", 
+                                 font=("Arial", 12, "bold"), padx=10, pady=10)
+        pt_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        
+        cols_pt = ("Tên phụ tùng", "Số lượng", "Đơn giá", "Thành tiền")
+        pt_tree = ttk.Treeview(pt_frame, columns=cols_pt, show="headings", height=5)
+        for col in cols_pt: pt_tree.heading(col, text=col)
+        pt_tree.pack(fill=tk.BOTH, expand=True)
+
+        # Chạy SQL 2: Lấy phụ tùng (Cách không tối ưu là chạy 2 query riêng)
+        query_pt = """
+            SELECT pt.TenPhuTung, cthd.SoLuong, cthd.DonGia
+            FROM ChiTietHoaDonPhuTung cthd
+            JOIN PhuTung pt ON cthd.MaPhuTung = pt.MaPhuTung
+            WHERE cthd.MaHoaDon = %s
+        """
+        parts = self.db.fetch_all(query_pt, (invoice_id,))
+        if parts:
+            for p in parts:
+                thanh_tien = p['SoLuong'] * p['DonGia']
+                pt_tree.insert("", tk.END, values=(
+                    p['TenPhuTung'], 
+                    p['SoLuong'], 
+                    f"{p['DonGia']:,.0f}", 
+                    f"{thanh_tien:,.0f}"
+                ))
+
+        tk.Button(
+            dialog, 
+            text="Đóng", 
+            font=("Arial", 11, "bold"), 
+            bg="#dc3545", 
+            fg="white", 
+            command=dialog.destroy
+        ).pack(pady=10)
+
     def logout(self):
         """Đăng xuất"""
         if messagebox.askyesno("Xác nhận", "Bạn có chắc muốn đăng xuất?"):
@@ -534,17 +799,7 @@ class NhanVien:
             self.db.disconnect()
             self.window.destroy()
 
-    def show_service_screen(self):
-        """Màn hình dịch vụ sửa chữa - tương tự bán hàng nhưng dùng phụ tùng"""
-        self.clear_content()
-        self.cart_items = []
     
-        tk.Label(
-            self.content_frame,
-            text="DỊCH VỤ SỬA CHỮA - BẢO DƯỠNG",
-            font=("Arial", 18, "bold"),
-            bg=self.bg_color
-        ).pack(pady=10)
     
     # Phần còn lại code tương tự show_sales_screen
     # Nhưng thay vì load sản phẩm thì load phụ tùng
