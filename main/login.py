@@ -1,11 +1,18 @@
 # =================================================================
 # FILE: login.py
 # MÔ TẢ: Class Login - Giao diện đăng nhập hệ thống
+# (Đã cập nhật đường dẫn import)
 # =================================================================
 
 import tkinter as tk
 from tkinter import messagebox, ttk
 from database_connection import DatabaseConnection
+
+# --- THAY ĐỔI DUY NHẤT LÀ Ở 3 DÒNG DƯỚI ĐÂY ---
+# Chúng ta thêm tiền tố "UI." vào trước tên file
+from UI.admin_window import Admin
+from UI.quanly_window import QuanLy
+from UI.nhanvien_window import NhanVien
 
 class Login:
     def __init__(self):
@@ -118,17 +125,14 @@ class Login:
         username = self.username_entry.get().strip()
         password = self.password_entry.get().strip()
         
-        # Kiểm tra dữ liệu nhập
         if not username or not password:
             messagebox.showwarning("Cảnh báo", "Vui lòng nhập đầy đủ thông tin!")
             return
         
-        # Kết nối database
         if not self.db.connect():
             messagebox.showerror("Lỗi", "Không thể kết nối đến database!")
             return
         
-        # Kiểm tra đăng nhập
         query = """
             SELECT MaNguoiDung, HoTen, VaiTro, TrangThai 
             FROM NguoiDung 
@@ -142,11 +146,9 @@ class Login:
                 self.db.disconnect()
                 return
             
-            # Đăng nhập thành công
             messagebox.showinfo("Thành công", f"Xin chào {user['HoTen']}!")
             self.db.disconnect()
             
-            # Mở giao diện tương ứng với vai trò
             self.window.destroy()
             self.open_main_window(user)
         else:
@@ -156,13 +158,10 @@ class Login:
     def open_main_window(self, user_info):
         """Mở giao diện chính theo vai trò"""
         if user_info['VaiTro'] == 'Admin':
-            from admin_window import Admin
             Admin(user_info)
         elif user_info['VaiTro'] == 'QuanLy':
-            from quanly_window import QuanLy
             QuanLy(user_info)
         elif user_info['VaiTro'] == 'NhanVien':
-            from nhanvien_window import NhanVien
             NhanVien(user_info)
     
     def run(self):

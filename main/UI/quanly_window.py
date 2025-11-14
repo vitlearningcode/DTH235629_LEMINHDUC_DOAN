@@ -1,12 +1,17 @@
 # =================================================================
 # FILE: quanly_window.py
-# MÔ TẢ: Class QuanLy - Giao diện quản lý (chỉ xem và chấm công)
+# MÔ TẢ: Class QuanLy - Giao diện quản lý (CHỈ CÓ UI, ĐÃ DỌN DẸP)
 # =================================================================
 
 import tkinter as tk
 from tkinter import messagebox, ttk
 from database_connection import DatabaseConnection
 from datetime import datetime, date
+
+# --- 1. IMPORT LỚP LOGIC ---
+from Function.function_QuanLy.quanly_logic import QuanLyLogic
+
+# --- KHÔNG CẦN IMPORT LOGIN TẠI ĐÂY ---
 
 class QuanLy:
     def __init__(self, user_info):
@@ -28,12 +33,15 @@ class QuanLy:
         self.db = DatabaseConnection()
         self.db.connect()
         
+        # --- 2. KHỞI TẠO LỚP LOGIC ---
+        self.logic = QuanLyLogic(self)
+        
         self.setup_ui()
-        self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
+        self.window.protocol("WM_DELETE_WINDOW", self.logic.on_closing)
         self.window.mainloop()
     
     def setup_ui(self):
-        """Thiết lập giao diện"""
+        """Thiết lập giao diện (Chỉ UI)"""
         # Header
         header_frame = tk.Frame(self.window, bg=self.menu_color, height=60)
         header_frame.pack(fill=tk.X, side=tk.TOP)
@@ -60,14 +68,14 @@ class QuanLy:
             font=("Arial", 10, "bold"),
             bg="#DC143C",
             fg=self.text_color,
-            command=self.logout
+            command=self.logic.logout 
         ).pack(side=tk.RIGHT, padx=10)
         
-        # Menu bên trái
+        # Menu
         menu_frame = tk.Frame(self.window, bg=self.menu_color, width=250)
         menu_frame.pack(fill=tk.Y, side=tk.LEFT)
         
-        # Nội dung chính
+        # Nội dung
         self.content_frame = tk.Frame(self.window, bg=self.bg_color)
         self.content_frame.pack(fill=tk.BOTH, expand=True, side=tk.RIGHT)
         
@@ -75,7 +83,7 @@ class QuanLy:
         self.show_dashboard()
     
     def create_menu(self, parent):
-        """Tạo menu điều hướng"""
+        """Tạo menu điều hướng (Chỉ UI)"""
         menu_items = [
             ("🏠 Trang chủ", self.show_dashboard),
             ("👥 Xem nhân viên", self.view_employees),
@@ -84,7 +92,7 @@ class QuanLy:
             ("📦 Xem kho", self.view_warehouse),
             ("👤 Xem khách hàng", self.view_customers),
             ("📄 Xem hóa đơn", self.view_invoices),
-            ("⏰ Chấm công", self.manage_attendance),
+            ("⏰ Chấm công", self.manage_attendance), # Hàm vẽ UI
             ("📊 Xem báo cáo", self.view_reports)
         ]
         
@@ -117,6 +125,10 @@ class QuanLy:
         for widget in self.content_frame.winfo_children():
             widget.destroy()
     
+    # =================================================================
+    # CÁC HÀM VẼ GIAO DIỆN (UI-DRAWING METHODS)
+    # =================================================================
+
     def show_dashboard(self):
         """Hiển thị trang chủ"""
         self.clear_content()
@@ -171,11 +183,9 @@ class QuanLy:
             fg="#003366"
         ).pack(pady=10)
         
-        # Frame bảng
         table_frame = tk.Frame(self.content_frame, bg=self.bg_color)
         table_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
         
-        # Treeview
         columns = ("ID", "Họ tên", "SĐT", "Email", "Vai trò", "Trạng thái")
         tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=25)
         
@@ -189,7 +199,7 @@ class QuanLy:
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Load dữ liệu
+        # Logic tải dữ liệu đơn giản, giữ lại tại UI
         query = """
             SELECT MaNguoiDung, HoTen, SoDienThoai, Email, VaiTro, TrangThai
             FROM NguoiDung
@@ -198,15 +208,16 @@ class QuanLy:
         """
         employees = self.db.fetch_all(query)
         
-        for emp in employees:
-            tree.insert("", tk.END, values=(
-                emp['MaNguoiDung'],
-                emp['HoTen'],
-                emp['SoDienThoai'] or "",
-                emp['Email'] or "",
-                emp['VaiTro'],
-                emp['TrangThai']
-            ))
+        if employees:
+            for emp in employees:
+                tree.insert("", tk.END, values=(
+                    emp['MaNguoiDung'],
+                    emp['HoTen'],
+                    emp['SoDienThoai'] or "",
+                    emp['Email'] or "",
+                    emp['VaiTro'],
+                    emp['TrangThai']
+                ))
     
     def view_products(self):
         """Xem sản phẩm"""
@@ -259,7 +270,7 @@ class QuanLy:
         ).pack(pady=20)
     
     def manage_attendance(self):
-        """Chấm công nhân viên"""
+        """Vẽ UI Chấm công nhân viên"""
         self.clear_content()
         
         tk.Label(
@@ -270,7 +281,6 @@ class QuanLy:
             fg="#003366"
         ).pack(pady=10)
         
-        # Frame chọn ngày
         date_frame = tk.Frame(self.content_frame, bg=self.bg_color)
         date_frame.pack(pady=10)
         
@@ -291,10 +301,9 @@ class QuanLy:
             font=("Arial", 11),
             bg=self.btn_color,
             fg="white",
-            command=lambda: self.load_attendance()
+            command=self.logic.load_attendance 
         ).pack(side=tk.LEFT, padx=10)
         
-        # Frame bảng
         table_frame = tk.Frame(self.content_frame, bg=self.bg_color)
         table_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
         
@@ -311,7 +320,6 @@ class QuanLy:
         self.attendance_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Nút chức năng
         btn_frame = tk.Frame(self.content_frame, bg=self.bg_color)
         btn_frame.pack(pady=10)
         
@@ -321,121 +329,10 @@ class QuanLy:
             font=("Arial", 11),
             bg="#28a745",
             fg="white",
-            command=self.add_attendance
+            command=self.logic.add_attendance
         ).pack(side=tk.LEFT, padx=5)
         
-        self.load_attendance()
-    
-    def load_attendance(self):
-        """Tải dữ liệu chấm công"""
-        for item in self.attendance_tree.get_children():
-            self.attendance_tree.delete(item)
-        
-        selected_date = self.date_var.get()
-        
-        query = """
-            SELECT nd.MaNguoiDung, nd.HoTen, 
-                   cc.GioVao, cc.GioRa, cc.SoGioLam, cc.TrangThai
-            FROM NguoiDung nd
-            LEFT JOIN ChamCong cc ON nd.MaNguoiDung = cc.MaNguoiDung 
-                                  AND cc.NgayChamCong = %s
-            WHERE nd.VaiTro = 'NhanVien'
-            ORDER BY nd.MaNguoiDung
-        """
-        records = self.db.fetch_all(query, (selected_date,))
-        
-        for rec in records:
-            self.attendance_tree.insert("", tk.END, values=(
-                rec['MaNguoiDung'],
-                rec['HoTen'],
-                rec['GioVao'] or "",
-                rec['GioRa'] or "",
-                rec['SoGioLam'] or "",
-                rec['TrangThai'] or "Chưa chấm"
-            ))
-    
-    def add_attendance(self):
-        """Thêm chấm công"""
-        selected = self.attendance_tree.selection()
-        if not selected:
-            messagebox.showwarning("Cảnh báo", "Vui lòng chọn nhân viên!")
-            return
-        
-        emp_id = self.attendance_tree.item(selected[0])['values'][0]
-        selected_date = self.date_var.get()
-        
-        # Dialog chấm công
-        dialog = tk.Toplevel(self.window)
-        dialog.title("Chấm công")
-        dialog.geometry("400x350")
-        dialog.resizable(False, False)
-        
-        tk.Label(dialog, text="CHẤM CÔNG NHÂN VIÊN", font=("Arial", 14, "bold")).pack(pady=20)
-        
-        # Giờ vào
-        tk.Label(dialog, text="Giờ vào (HH:MM):", font=("Arial", 11)).pack(pady=5)
-        gio_vao = tk.Entry(dialog, font=("Arial", 11), width=20)
-        gio_vao.pack(pady=5)
-        gio_vao.insert(0, "08:00")
-        
-        # Giờ ra
-        tk.Label(dialog, text="Giờ ra (HH:MM):", font=("Arial", 11)).pack(pady=5)
-        gio_ra = tk.Entry(dialog, font=("Arial", 11), width=20)
-        gio_ra.pack(pady=5)
-        gio_ra.insert(0, "17:00")
-        
-        # Trạng thái
-        tk.Label(dialog, text="Trạng thái:", font=("Arial", 11)).pack(pady=5)
-        status_var = tk.StringVar(value="DiLam")
-        status_combo = ttk.Combobox(
-            dialog,
-            textvariable=status_var,
-            values=["DiLam", "VangMat", "NghiPhep", "DiTre"],
-            font=("Arial", 11),
-            state="readonly",
-            width=18
-        )
-        status_combo.pack(pady=5)
-        
-        def save():
-            try:
-                # Tính số giờ làm
-                h1, m1 = map(int, gio_vao.get().split(':'))
-                h2, m2 = map(int, gio_ra.get().split(':'))
-                hours = (h2 * 60 + m2 - h1 * 60 - m1) / 60
-                
-                query = """
-                    INSERT INTO ChamCong (MaNguoiDung, NgayChamCong, GioVao, GioRa, SoGioLam, TrangThai, NguoiChamCong)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE
-                    GioVao = VALUES(GioVao),
-                    GioRa = VALUES(GioRa),
-                    SoGioLam = VALUES(SoGioLam),
-                    TrangThai = VALUES(TrangThai)
-                """
-                result = self.db.execute_query(
-                    query,
-                    (emp_id, selected_date, gio_vao.get(), gio_ra.get(), hours, status_var.get(), self.user_info['MaNguoiDung'])
-                )
-                
-                if result is not None:
-                    messagebox.showinfo("Thành công", "Chấm công thành công!")
-                    dialog.destroy()
-                    self.load_attendance()
-                else:
-                    messagebox.showerror("Lỗi", "Không thể chấm công!")
-            except Exception as e:
-                messagebox.showerror("Lỗi", f"Định dạng giờ không đúng!\n{e}")
-        
-        tk.Button(
-            dialog,
-            text="💾 Lưu",
-            font=("Arial", 12, "bold"),
-            bg="#28a745",
-            fg="white",
-            command=save,
-            width=15
-        ).pack(pady=20)
+        self.logic.load_attendance()
     
     def view_reports(self):
         """Xem báo cáo"""
@@ -446,17 +343,3 @@ class QuanLy:
             font=("Arial", 18, "bold"),
             bg=self.bg_color
         ).pack(pady=20)
-    
-    def logout(self):
-        """Đăng xuất"""
-        if messagebox.askyesno("Xác nhận", "Bạn có chắc muốn đăng xuất?"):
-            self.db.disconnect()
-            self.window.destroy()
-            from login import Login
-            Login().run()
-    
-    def on_closing(self):
-        """Xử lý đóng cửa sổ"""
-        if messagebox.askyesno("Xác nhận", "Bạn có chắc muốn thoát?"):
-            self.db.disconnect()
-            self.window.destroy()
