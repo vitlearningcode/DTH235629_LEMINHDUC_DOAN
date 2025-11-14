@@ -1,28 +1,20 @@
-# main/Function/function_QuanLy/quanly_logic.py
+    # main/Function/function_QuanLy/quanly_attendance_logic.py
+# (File này TRƯỚC ĐÂY là quanly_logic.py)
 
 import tkinter as tk
 from tkinter import messagebox, ttk
 from datetime import datetime, date
 
-# 1. KHÔNG IMPORT LOGIN Ở ĐÂY
-# from login import Login  <-- XÓA DÒNG NÀY
-
-class QuanLyLogic:
+class QuanLyAttendanceLogic:
     def __init__(self, view):
-        """
-        Khởi tạo lớp logic cho Quản Lý.
-        :param view: Thể hiện của lớp QuanLy (quanly_window.py)
-        """
         self.view = view
-        self.db = view.db # Lấy kết nối CSDL từ view
+        self.db = view.db
 
     def load_attendance(self):
         """Tải dữ liệu chấm công"""
-        # Truy cập treeview qua self.view.attendance_tree
         for item in self.view.attendance_tree.get_children():
             self.view.attendance_tree.delete(item)
         
-        # Truy cập biến ngày qua self.view.date_var
         selected_date = self.view.date_var.get()
         
         query = """
@@ -57,8 +49,7 @@ class QuanLyLogic:
         emp_id = self.view.attendance_tree.item(selected[0])['values'][0]
         selected_date = self.view.date_var.get()
         
-        # Dialog chấm công
-        dialog = tk.Toplevel(self.view.window) # Dùng self.view.window làm cha
+        dialog = tk.Toplevel(self.view.window)
         dialog.title("Chấm công")
         dialog.geometry("400x350")
         dialog.resizable(False, False)
@@ -93,7 +84,6 @@ class QuanLyLogic:
                 h2, m2 = map(int, gio_ra.get().split(':'))
                 hours = (h2 * 60 + m2 - h1 * 60 - m1) / 60
                 
-                # --- SỬA LỖI TƯƠNG THÍCH SQL SERVER ---
                 check_query = "SELECT MaChamCong FROM ChamCong WHERE MaNguoiDung = %s AND NgayChamCong = %s"
                 existing = self.db.fetch_one(check_query, (emp_id, selected_date))
                 
@@ -122,7 +112,7 @@ class QuanLyLogic:
                 if result is not None:
                     messagebox.showinfo("Thành công", "Chấm công thành công!")
                     dialog.destroy()
-                    self.load_attendance() # Tải lại danh sách
+                    self.load_attendance()
                 else:
                     messagebox.showerror("Lỗi", "Không thể chấm công!")
             except Exception as e:
@@ -137,19 +127,3 @@ class QuanLyLogic:
             command=save,
             width=15
         ).pack(pady=20)
-
-    def logout(self):
-        """Đăng xuất"""
-        # 2. IMPORT LOGIN TẠI ĐÂY
-        from login import Login 
-
-        if messagebox.askyesno("Xác nhận", "Bạn có chắc muốn đăng xuất?"):
-            self.db.disconnect()
-            self.view.window.destroy()
-            Login().run() # Khởi tạo và chạy lại cửa sổ Login
-    
-    def on_closing(self):
-        """Xử lý đóng cửa sổ"""
-        if messagebox.askyesno("Xác nhận", "Bạn có chắc muốn thoát?"):
-            self.db.disconnect()
-            self.view.window.destroy()  
