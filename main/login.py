@@ -1,15 +1,14 @@
 # =================================================================
 # FILE: login.py
 # MÔ TẢ: Class Login - Giao diện đăng nhập hệ thống
-# (Đã cập nhật đường dẫn import)
+# (Đã loại bỏ info_label và căn chỉnh)
 # =================================================================
 
 import tkinter as tk
 from tkinter import messagebox, ttk
 from database_connection import DatabaseConnection
 
-# --- THAY ĐỔI DUY NHẤT LÀ Ở 3 DÒNG DƯỚI ĐÂY ---
-# Chúng ta thêm tiền tố "UI." vào trước tên file
+# Import các cửa sổ con
 from UI.admin_window import Admin
 from UI.quanly_window import QuanLy
 from UI.nhanvien_window import NhanVien
@@ -27,12 +26,49 @@ class Login:
         self.btn_color = "#4682B4"  # Steel Blue
         self.text_color = "#FFFFFF"
         
+        # --- BỘ FONT CHỮ ---
+        self.font_title = ("Segoe UI", 20, "bold")
+        self.font_label = ("Segoe UI", 12)
+        self.font_button = ("Segoe UI", 12, "bold")
+        
         # Kết nối database
         self.db = DatabaseConnection()
         
+        self.setup_styles()
         self.setup_ui()
         self.center_window()
     
+    def setup_styles(self):
+        """Định nghĩa style cho các widget TTK để sắc nét hơn"""
+        s = ttk.Style()
+        
+        try:
+            s.theme_use('vista')
+        except tk.TclError:
+            print("Lưu ý: Theme 'vista' không có sẵn, sử dụng theme mặc định.")
+
+        s.configure('Main.TFrame', background=self.bg_color)
+        
+        s.configure('Title.TLabel',
+                    background=self.bg_color,
+                    foreground="#003366",
+                    font=self.font_title)
+        
+        s.configure('Login.TFrame',
+                    background="white",
+                    relief="raised",
+                    borderwidth=2)
+        
+        s.configure('Login.TLabel',
+                    background="white",
+                    font=self.font_label)
+        
+        s.configure('TEntry', font=self.font_label)
+
+        s.configure('TButton',
+                    font=self.font_button,
+                    width=20)
+
     def center_window(self):
         """Căn giữa cửa sổ"""
         self.window.update_idletasks()
@@ -43,79 +79,71 @@ class Login:
         self.window.geometry(f'{width}x{height}+{x}+{y}')
     
     def setup_ui(self):
-        """Thiết lập giao diện đăng nhập"""
-        # Frame chính
-        main_frame = tk.Frame(self.window, bg=self.bg_color)
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        """Thiết lập giao diện đăng nhập (Sử dụng TTK và .place())"""
         
+        main_frame = ttk.Frame(self.window, style='Main.TFrame')
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Frame trung tâm để chứa mọi thứ
+        center_frame = ttk.Frame(main_frame, style='Main.TFrame')
+        center_frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+
         # Logo/Title
-        title_label = tk.Label(
-            main_frame,
+        title_label = ttk.Label(
+            center_frame,
             text="QUẢN LÝ CỬA HÀNG XE MÁY",
-            font=("Arial", 20, "bold"),
-            bg=self.bg_color,
-            fg="#003366"
+            style='Title.TLabel'
         )
-        title_label.pack(pady=30)
+        title_label.pack(pady=20) 
         
         # Frame đăng nhập
-        login_frame = tk.Frame(main_frame, bg="white", bd=2, relief=tk.RAISED)
-        login_frame.pack(padx=50, pady=20)
+        login_frame = ttk.Frame(
+            center_frame,
+            style='Login.TFrame',
+            padding=(20, 20, 20, 20) # <-- TĂNG PADDING CHO CÂN ĐỐI
+        )
+        login_frame.pack(padx=50) 
         
         # Tên đăng nhập
-        tk.Label(
+        ttk.Label(
             login_frame,
             text="Tên đăng nhập:",
-            font=("Arial", 12),
-            bg="white"
-        ).grid(row=0, column=0, padx=20, pady=15, sticky="w")
-        
-        self.username_entry = tk.Entry(
+            style='Login.TLabel'
+        ).grid(row=0, column=0, padx=(0, 10), pady=15, sticky="e") # Tăng pady
+
+        self.username_entry = ttk.Entry(
             login_frame,
-            font=("Arial", 12),
+            font=self.font_label,
             width=25
         )
-        self.username_entry.grid(row=0, column=1, padx=20, pady=15)
+        self.username_entry.grid(row=0, column=1, pady=15)
         
         # Mật khẩu
-        tk.Label(
+        ttk.Label(
             login_frame,
             text="Mật khẩu:",
-            font=("Arial", 12),
-            bg="white"
-        ).grid(row=1, column=0, padx=20, pady=15, sticky="w")
-        
-        self.password_entry = tk.Entry(
+            style='Login.TLabel'
+        ).grid(row=1, column=0, padx=(0, 10), pady=15, sticky="e") # Tăng pady
+
+        self.password_entry = ttk.Entry(
             login_frame,
-            font=("Arial", 12),
+            font=self.font_label,
             width=25,
             show="*"
         )
-        self.password_entry.grid(row=1, column=1, padx=20, pady=15)
+        self.password_entry.grid(row=1, column=1, pady=15)
         
         # Nút đăng nhập
-        login_btn = tk.Button(
+        login_btn = ttk.Button(
             login_frame,
             text="ĐĂNG NHẬP",
-            font=("Arial", 12, "bold"),
-            bg=self.btn_color,
-            fg=self.text_color,
-            width=20,
+            style='TButton',
             cursor="hand2",
             command=self.login
         )
-        login_btn.grid(row=2, column=0, columnspan=2, pady=25)
+        login_btn.grid(row=2, column=0, columnspan=2, pady=(25, 10)) # (Tăng pady)
         
-        # Thông tin mặc định
-        info_label = tk.Label(
-            main_frame,
-            text="Tài khoản mặc định:\nAdmin: admin/123456\nQuản lý: quanly01/123456\nNhân viên: nhanvien01/123456",
-            font=("Arial", 9),
-            bg=self.bg_color,
-            fg="#003366",
-            justify=tk.LEFT
-        )
-        info_label.pack(pady=10)
+        # --- ĐÃ XÓA BỎ INFO_LABEL ---
         
         # Bind phím Enter
         self.password_entry.bind('<Return>', lambda e: self.login())
