@@ -1,5 +1,5 @@
 # main/Function/function_Admin/admin_promotion_logic.py
-
+import tkinter as tk
 class AdminPromotionLogic:
     def __init__(self, view):
         self.view = view

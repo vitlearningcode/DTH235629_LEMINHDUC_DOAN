@@ -18,6 +18,9 @@ from Function.function_Admin.admin_invoice_logic import AdminInvoiceLogic
 from Function.function_Admin.admin_promotion_logic import AdminPromotionLogic
 from Function.function_Admin.admin_reports_logic import AdminReportsLogic
 from Function.function_Admin.admin_system_logic import AdminSystemLogic
+#-------------------------------------------------------------------------
+# imoport mới đưa vào ở đây hieu
+from Function.function_Admin.admin_warehouse_logic import AdminWarehouseLogic
 
 # --- KHÔNG CẦN IMPORT LOGIN TẠI ĐÂY ---
 
@@ -51,7 +54,10 @@ class Admin:
         self.promo_logic = AdminPromotionLogic(self)
         self.report_logic = AdminReportsLogic(self)
         self.system_logic = AdminSystemLogic(self)
-        
+        #-------------------------------------------------------------------------
+        # dòng mới đc hieu thêm vào
+        self.warehouse_logic = AdminWarehouseLogic(self)
+
         self.setup_ui()
         self.window.protocol("WM_DELETE_WINDOW", self.system_logic.on_closing)
         self.window.mainloop()
@@ -64,7 +70,7 @@ class Admin:
         
         tk.Label(
             header_frame,
-            text="HỆ THỐNG QUẢN LÝ CỬA HÀNG XE MÁY - ADMIN",
+            text="HỆ THỐNG QUẢN LÝ CỬA HÀNG XE MÁY - CHỦ CỬA HÀNG",
             font=("Arial", 18, "bold"),
             bg=self.menu_color,
             fg=self.text_color
@@ -240,10 +246,53 @@ class Admin:
         
         self.part_logic.load_parts()
 
+
+
     def manage_warehouse(self):
-        """Hiển thị UI Quản lý kho (Placeholder)"""
+        """Hiển thị UI Quản lý Kho (Phiếu Nhập)"""
         self.clear_content()
-        tk.Label(self.content_frame, text="QUẢN LÝ KHO (Đang phát triển)", font=("Arial", 18, "bold"), bg=self.bg_color).pack(pady=20)
+        tk.Label(self.content_frame, text="QUẢN LÝ KHO - PHIẾU NHẬP", 
+                 font=("Arial", 18, "bold"), bg=self.bg_color, fg="#003366").pack(pady=10)
+        
+        btn_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        btn_frame.pack(pady=10)
+        
+        # Sử dụng self.warehouse_logic (đã khởi tạo trong __init__)
+        buttons = [
+            ("➕ Tạo Phiếu Nhập Mới", "#28a745", self.warehouse_logic.add_phieu_nhap),
+            ("🔍 Xem Chi Tiết", "#007bff", self.warehouse_logic.view_chi_tiet),
+            ("🗑️ Xóa Phiếu Nhập", "#dc3545", self.warehouse_logic.delete_phieu_nhap),
+            ("🔄 Tải lại", "#17a2b8", self.manage_warehouse) 
+        ]
+        
+        for text, bg, cmd in buttons:
+            tk.Button(btn_frame, text=text, font=("Arial", 11), bg=bg, fg="white", command=cmd, width=20).pack(side=tk.LEFT, padx=5)
+        
+        table_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        table_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        
+        columns = ("Mã Phiếu", "Nhà Cung Cấp", "Người Nhập", "Ngày Nhập", "Tổng Tiền", "Trạng Thái")
+        
+        # Tạo Treeview và gán vào self.view (chính là self của admin_window)
+        # Bằng cách này, file logic có thể truy cập qua self.view.phieu_nhap_tree
+        self.phieu_nhap_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=25)
+        
+        widths = {"Mã Phiếu": 80, "Nhà Cung Cấp": 250, "Người Nhập": 200, "Ngày Nhập": 150, "Tổng Tiền": 120, "Trạng Thái": 100}
+        
+        for col in columns: 
+            self.phieu_nhap_tree.heading(col, text=col)
+            self.phieu_nhap_tree.column(col, width=widths[col], anchor="center")
+
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.phieu_nhap_tree.yview)
+        self.phieu_nhap_tree.configure(yscrollcommand=scrollbar.set)
+        
+        self.phieu_nhap_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Tải dữ liệu ban đầu
+        self.warehouse_logic.load_phieu_nhap()
+
+
 
     def manage_customers(self):
         """Hiển thị UI Quản lý khách hàng"""
