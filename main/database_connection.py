@@ -9,7 +9,7 @@ class DatabaseConnection:
     def __init__(self):
         """Khởi tạo thông tin kết nối SQL Server"""
         # --- CẤU HÌNH CỦA BẠN ---
-        self.server = 'Hieu-PC\\SQLEXPRESS'  # <--- DÁN TÊN SERVER CỦA BẠN VÀO ĐÂY
+        self.server = 'KenG_Kanowaki\\LEMINHDUCSQL'  # <--- DÁN TÊN SERVER CỦA BẠN VÀO ĐÂY
         self.database = 'QUANLYCUAHANGXEMAY'
         self.driver = '{ODBC Driver 17 for SQL Server}' # Hoặc 'SQL Server' nếu lỗi driver
         self.connection = None
