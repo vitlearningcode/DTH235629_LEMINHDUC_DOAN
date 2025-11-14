@@ -1,7 +1,6 @@
 # =================================================================
 # FILE: quanly_window.py
-# MÔ TẢ: Class QuanLy - Giao diện quản lý (ĐÃ SỬA LỖI NÚT XEM KHO)
-# (Đã tách 9 logic ra 9 class riêng biệt)
+# MÔ TẢ: Class QuanLy - Giao diện quản lý (ĐÃ THÊM THANH TÌM KIẾM)
 # =================================================================
 
 import tkinter as tk
@@ -9,7 +8,7 @@ from tkinter import messagebox, ttk
 from database_connection import DatabaseConnection
 from datetime import datetime, date
 
-# --- 1. IMPORT TẤT CẢ 9 LỚP LOGIC ---
+# --- 1. IMPORT TẤT CẢ 10 LỚP LOGIC ---
 from Function.function_QuanLy.quanly_attendance_logic import QuanLyAttendanceLogic
 from Function.function_QuanLy.quanly_system_logic import QuanLySystemLogic
 from Function.function_QuanLy.quanly_employee_view_logic import QuanLyEmployeeViewLogic
@@ -19,6 +18,8 @@ from Function.function_QuanLy.quanly_warehouse_view_logic import QuanLyWarehouse
 from Function.function_QuanLy.quanly_customer_view_logic import QuanLyCustomerViewLogic
 from Function.function_QuanLy.quanly_invoice_view_logic import QuanLyInvoiceViewLogic
 from Function.function_QuanLy.quanly_report_view_logic import QuanLyReportViewLogic
+from Function.function_QuanLy.quanly_dashboard_logic import QuanLyDashboardLogic
+
 
 class QuanLy:
     def __init__(self, user_info):
@@ -34,12 +35,14 @@ class QuanLy:
         self.font_title = ("Segoe UI", 18, "bold")
         self.font_header = ("Segoe UI", 16, "bold")
         self.font_menu_title = ("Segoe UI", 14, "bold")
-        self.font_menu_btn = ("Segoe UI", 11, "bold") 
+        self.font_menu_btn = ("Segoe UI", 11, "bold")
         self.font_label = ("Segoe UI", 12)
         self.font_info = ("Segoe UI", 12)
         self.font_button = ("Segoe UI", 10, "bold")
-        
-        # --- MÀU SẮC GỐC CỦA BẠN ---
+        self.font_card_label = ("Segoe UI", 12, "bold")
+        self.font_card_value = ("Segoe UI", 24, "bold")
+
+        # Màu sắc
         self.bg_color = "#E6F2FF"
         self.menu_color = "#5F9EA0"
         self.btn_color = "#4682B4"
@@ -50,21 +53,17 @@ class QuanLy:
         self.db = DatabaseConnection()
         self.db.connect()
         
-        # --- 2. KHỞI TẠO TẤT CẢ 9 LỚP LOGIC ---
+        # --- 2. KHỞI TẠO TẤT CẢ 10 LỚP LOGIC ---
         self.logic_attendance = QuanLyAttendanceLogic(self)
         self.logic_system = QuanLySystemLogic(self)
         self.view_employee = QuanLyEmployeeViewLogic(self)
         self.view_product = QuanLyProductViewLogic(self)
         self.view_part = QuanLyPartViewLogic(self)
-        
-        # --- SỬA LỖI TẠI ĐÂY ---
-        # Đổi tên biến logic từ 'self.view_warehouse' thành 'self.logic_warehouse'
-        self.logic_warehouse = QuanLyWarehouseViewLogic(self)
-        # --- KẾT THÚC SỬA LỖI ---
-        
+        self.view_warehouse = QuanLyWarehouseViewLogic(self)
         self.view_customer = QuanLyCustomerViewLogic(self)
         self.view_invoice = QuanLyInvoiceViewLogic(self)
         self.view_report = QuanLyReportViewLogic(self)
+        self.logic_dashboard = QuanLyDashboardLogic(self)
         
         self.setup_styles()
         self.setup_ui()
@@ -72,18 +71,20 @@ class QuanLy:
         self.window.mainloop()
 
     def setup_styles(self):
-        """Định nghĩa style cho các widget TTK (TRỪ NÚT MENU)"""
+        """Định nghĩa style cho các widget TTK"""
         s = ttk.Style()
         try:
             s.theme_use('vista')
         except tk.TclError:
-            print("Lưu ý: Theme 'vista' không có sẵn, sử dụng theme mặc định.")
+            pass # Sử dụng theme mặc định nếu 'vista' không có
 
         s.configure('Content.TFrame', background=self.bg_color)
         s.configure('Content.TLabel', background=self.bg_color, foreground=self.header_fg, font=self.font_header)
         s.configure('Menu.TFrame', background=self.menu_color)
         s.configure('Menu.TLabel', background=self.menu_color, foreground=self.text_color, font=self.font_menu_title)
         
+        s.configure('Std.TLabel', background=self.bg_color, font=self.font_label)
+        s.configure('Card.TFrame', background="white", relief="raised", borderwidth=2)
         s.configure('Func.TButton', font=self.font_button, padding=5)
         
         s.configure("Treeview", 
@@ -145,7 +146,7 @@ class QuanLy:
             ("👥 Xem nhân viên", self.view_employees),
             ("🏍️ Xem sản phẩm", self.view_products),
             ("🔧 Xem phụ tùng", self.view_parts),
-            ("📦 Xem phiếu nhập kho", self.view_warehouse),
+            ("📦 Xem kho", self.view_warehouse),
             ("👤 Xem khách hàng", self.view_customers),
             ("📄 Xem hóa đơn", self.view_invoices),
             ("⏰ Chấm công", self.manage_attendance),
@@ -176,7 +177,6 @@ class QuanLy:
             hover_color = "#5A9BD8"
             btn.bind("<Enter>", lambda e, b=btn, c=hover_color: b.config(bg=c))
             btn.bind("<Leave>", lambda e, b=btn, c=self.btn_color: b.config(bg=c))
-
             btn.pack(pady=4, padx=15, fill=tk.X)
     
     def clear_content(self):
@@ -184,62 +184,103 @@ class QuanLy:
         for widget in self.content_frame.winfo_children():
             widget.destroy()
     
+    # --- Hàm trợ giúp tạo thanh tìm kiếm ---
+    def create_search_bar(self, parent_frame, search_command):
+        """Tạo một frame chứa ô tìm kiếm và nút tìm"""
+        search_frame = ttk.Frame(parent_frame, style='Content.TFrame')
+        search_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(
+            search_frame, 
+            text="Tìm kiếm:", 
+            style='Std.TLabel'
+        ).pack(side=tk.LEFT, padx=(0, 10))
+        
+        search_entry = ttk.Entry(
+            search_frame, 
+            font=self.font_label, 
+            width=40
+        )
+        search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        search_button = ttk.Button(
+            search_frame, 
+            text="Tìm", 
+            style='Func.TButton', 
+            command=lambda: search_command(search_entry.get()),
+            cursor="hand2"
+        )
+        search_button.pack(side=tk.LEFT, padx=(10, 0))
+        
+        # Bind phím Enter
+        search_entry.bind("<Return>", lambda e: search_command(search_entry.get()))
+
+        return search_entry # Trả về entry để có thể .get()
+
     # =================================================================
     # CÁC HÀM VẼ GIAO DIỆN (UI-DRAWING METHODS)
     # =================================================================
 
     def show_dashboard(self):
-        """Hiển thị trang chủ"""
+        """Hiển thị trang chủ (ĐÃ NÂNG CẤP VỚI CÁC THẺ)"""
         self.clear_content()
         
         ttk.Label(
             self.content_frame,
             text="TRANG CHỦ QUẢN LÝ",
             style='Content.TLabel'
-        ).pack(pady=(0, 20))
+        ).pack(pady=(0, 20), anchor="center")
         
-        info_frame = ttk.Frame(self.content_frame, style='Login.TFrame', padding=30)
-        info_frame.pack(pady=30, padx=50, fill=tk.BOTH, expand=True)
+        stats_frame = ttk.Frame(self.content_frame, style='Content.TFrame')
+        stats_frame.pack(fill=tk.BOTH, expand=True)
         
-        ttk.Label(
-            info_frame,
-            text="THÔNG TIN TÀI KHOẢN",
-            style='Login.TLabel',
-            font=self.font_header
-        ).pack(pady=20)
+        stats = self.logic_dashboard.get_dashboard_stats()
         
-        info_text = f"""
-        Họ tên: {self.user_info['HoTen']}
-        Vai trò: Quản lý
+        colors = ["#17A2B8", "#28A745", "#FFC107", "#DC3545"]
         
-        QUYỀN HẠN:
-        ✓ Xem thông tin tất cả các module
-        ✓ Chấm công cho nhân viên
-        ✗ Không có quyền chỉnh sửa dữ liệu
+        # (Sử dụng tk.Frame và tk.Label để dễ dàng set màu nền)
+        card1 = tk.Frame(stats_frame, bg=colors[0], width=250, height=150, relief="raised", bd=2)
+        card1.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
+        card2 = tk.Frame(stats_frame, bg=colors[1], width=250, height=150, relief="raised", bd=2)
+        card2.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
+        card3 = tk.Frame(stats_frame, bg=colors[2], width=250, height=150, relief="raised", bd=2)
+        card3.grid(row=1, column=0, padx=20, pady=20, sticky="nsew")
+        card4 = tk.Frame(stats_frame, bg=colors[3], width=250, height=150, relief="raised", bd=2)
+        card4.grid(row=1, column=1, padx=20, pady=20, sticky="nsew")
         
-        Ngày hôm nay: {datetime.now().strftime('%d/%m/%Y')}
-        """
-        
-        ttk.Label(
-            info_frame,
-            text=info_text,
-            style='Login.TLabel',
-            font=self.font_info,
-            justify=tk.LEFT
-        ).pack(pady=20)
+        stats_frame.grid_columnconfigure(0, weight=1)
+        stats_frame.grid_columnconfigure(1, weight=1)
+        stats_frame.grid_rowconfigure(0, weight=1)
+        stats_frame.grid_rowconfigure(1, weight=1)
+
+        tk.Label(card1, text="Tổng nhân viên", font=self.font_card_label, bg=colors[0], fg="white").pack(pady=(20, 5))
+        tk.Label(card1, text=stats.get("Tổng nhân viên", 0), font=self.font_card_value, bg=colors[0], fg="white").pack(pady=5)
+        card1.pack_propagate(False)
+
+        tk.Label(card2, text="Tổng khách hàng", font=self.font_card_label, bg=colors[1], fg="white").pack(pady=(20, 5))
+        tk.Label(card2, text=stats.get("Tổng khách hàng", 0), font=self.font_card_value, bg=colors[1], fg="white").pack(pady=5)
+        card2.pack_propagate(False)
+
+        tk.Label(card3, text="Nhân viên có mặt", font=self.font_card_label, bg=colors[2], fg="#343A40").pack(pady=(20, 5))
+        tk.Label(card3, text=stats.get("Nhân viên có mặt", 0), font=self.font_card_value, bg=colors[2], fg="#343A40").pack(pady=5)
+        card3.pack_propagate(False)
+
+        tk.Label(card4, text="Doanh thu hôm nay", font=self.font_card_label, bg=colors[3], fg="white").pack(pady=(20, 5))
+        tk.Label(card4, text=stats.get("Doanh thu hôm nay", "0 VNĐ"), font=self.font_card_value, bg=colors[3], fg="white").pack(pady=5)
+        card4.pack_propagate(False)
+
     
     def view_employees(self):
-        """Xem danh sách nhân viên (chỉ xem)"""
+        """Xem danh sách nhân viên (ĐÃ THÊM TÌM KIẾM)"""
         self.clear_content()
         
         ttk.Label(
             self.content_frame,
             text="DANH SÁCH NHÂN VIÊN (CHỈ XEM)",
             style='Content.TLabel'
-        ).pack(pady=(0, 20))
+        ).pack(pady=(0, 10))
         
         table_frame = ttk.Frame(self.content_frame, style='Content.TFrame')
-        table_frame.pack(fill=tk.BOTH, expand=True)
         
         columns = ("ID", "Họ tên", "SĐT", "Email", "Vai trò", "Trạng thái")
         tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=25)
@@ -260,22 +301,26 @@ class QuanLy:
         scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
         tree.configure(yscrollcommand=scrollbar.set)
         
+        # --- THÊM THANH TÌM KIẾM ---
+        self.create_search_bar(self.content_frame, lambda keyword: self.view_employee.load_view(tree, keyword))
+        
+        table_frame.pack(fill=tk.BOTH, expand=True) # Đặt table_frame sau search_bar
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
+        # Tải dữ liệu ban đầu (không có keyword)
         self.view_employee.load_view(tree)
     
     def view_products(self):
-        """Xem sản phẩm"""
+        """Xem sản phẩm (ĐÃ THÊM TÌM KIẾM)"""
         self.clear_content()
         ttk.Label(
             self.content_frame,
             text="DANH SÁCH SẢN PHẨM (CHỈ XEM)",
             style='Content.TLabel'
-        ).pack(pady=(0, 20))
+        ).pack(pady=(0, 10))
 
         table_frame = ttk.Frame(self.content_frame, style='Content.TFrame')
-        table_frame.pack(fill=tk.BOTH, expand=True)
 
         columns = ("Mã SP", "Tên SP", "Hãng", "Loại", "Giá bán", "Tồn kho")
         tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=25)
@@ -296,22 +341,25 @@ class QuanLy:
         scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
         tree.configure(yscrollcommand=scrollbar.set)
         
+        # --- THÊM THANH TÌM KIẾM ---
+        self.create_search_bar(self.content_frame, lambda keyword: self.view_product.load_view(tree, keyword))
+        
+        table_frame.pack(fill=tk.BOTH, expand=True)
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        self.view_product.load_view(tree)
+        self.view_product.load_view(tree) # Tải ban đầu
     
     def view_parts(self):
-        """Xem phụ tùng"""
+        """Xem phụ tùng (ĐÃ THÊM TÌM KIẾM)"""
         self.clear_content()
         ttk.Label(
             self.content_frame,
             text="DANH SÁCH PHỤ TÙNG (CHỈ XEM)",
             style='Content.TLabel'
-        ).pack(pady=(0, 20))
+        ).pack(pady=(0, 10))
 
         table_frame = ttk.Frame(self.content_frame, style='Content.TFrame')
-        table_frame.pack(fill=tk.BOTH, expand=True)
 
         columns = ("Mã PT", "Tên Phụ Tùng", "Loại", "Giá bán", "Tồn kho")
         tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=25)
@@ -330,22 +378,25 @@ class QuanLy:
         scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
         tree.configure(yscrollcommand=scrollbar.set)
         
+        # --- THÊM THANH TÌM KIẾM ---
+        self.create_search_bar(self.content_frame, lambda keyword: self.view_part.load_view(tree, keyword))
+
+        table_frame.pack(fill=tk.BOTH, expand=True)
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        self.view_part.load_view(tree)
+        self.view_part.load_view(tree) # Tải ban đầu
     
     def view_warehouse(self):
-        """Xem kho (Phiếu nhập kho)"""
+        """Xem kho (Phiếu nhập kho) (ĐÃ THÊM TÌM KIẾM)"""
         self.clear_content()
         ttk.Label(
             self.content_frame,
             text="DANH SÁCH PHIẾU NHẬP KHO (CHỈ XEM)",
             style='Content.TLabel'
-        ).pack(pady=(0, 20))
+        ).pack(pady=(0, 10))
 
         table_frame = ttk.Frame(self.content_frame, style='Content.TFrame')
-        table_frame.pack(fill=tk.BOTH, expand=True)
 
         columns = ("Mã Phiếu", "Nhà Cung Cấp", "Người Nhập", "Ngày Nhập", "Tổng Tiền", "Trạng Thái")
         tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=25)
@@ -366,25 +417,25 @@ class QuanLy:
         scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
         tree.configure(yscrollcommand=scrollbar.set)
         
+        # --- THÊM THANH TÌM KIẾM ---
+        self.create_search_bar(self.content_frame, lambda keyword: self.view_warehouse.load_view(tree, keyword))
+
+        table_frame.pack(fill=tk.BOTH, expand=True)
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # --- SỬA LỖI TẠI ĐÂY ---
-        # Gọi đúng tên biến logic
-        self.logic_warehouse.load_view(tree)
-        # --- KẾT THÚC SỬA LỖI ---
-
+        self.view_warehouse.load_view(tree) # Tải ban đầu
+    
     def view_customers(self):
-        """Xem khách hàng"""
+        """Xem khách hàng (ĐÃ THÊM TÌM KIẾM)"""
         self.clear_content()
         ttk.Label(
             self.content_frame,
             text="DANH SÁCH KHÁCH HÀNG (CHỈ XEM)",
             style='Content.TLabel'
-        ).pack(pady=(0, 20))
+        ).pack(pady=(0, 10))
 
         table_frame = ttk.Frame(self.content_frame, style='Content.TFrame')
-        table_frame.pack(fill=tk.BOTH, expand=True)
 
         columns = ("Mã KH", "Họ Tên", "SĐT", "Địa Chỉ", "Loại KH")
         tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=25)
@@ -403,22 +454,25 @@ class QuanLy:
         scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
         tree.configure(yscrollcommand=scrollbar.set)
         
+        # --- THÊM THANH TÌM KIẾM ---
+        self.create_search_bar(self.content_frame, lambda keyword: self.view_customer.load_view(tree, keyword))
+        
+        table_frame.pack(fill=tk.BOTH, expand=True)
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        self.view_customer.load_view(tree)
+        self.view_customer.load_view(tree) # Tải ban đầu
     
     def view_invoices(self):
-        """Xem hóa đơn (Sử dụng VIEW)"""
+        """Xem hóa đơn (Sử dụng VIEW) (ĐÃ THÊM TÌM KIẾM)"""
         self.clear_content()
         ttk.Label(
             self.content_frame,
             text="DANH SÁCH HÓA ĐƠN (CHỈ XEM)",
             style='Content.TLabel'
-        ).pack(pady=(0, 20))
+        ).pack(pady=(0, 10))
 
         table_frame = ttk.Frame(self.content_frame, style='Content.TFrame')
-        table_frame.pack(fill=tk.BOTH, expand=True)
 
         columns = ("Mã HĐ", "Ngày Lập", "Khách Hàng", "Nhân Viên", "Tổng Tiền", "Còn Nợ", "Trạng Thái")
         tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=25)
@@ -441,10 +495,14 @@ class QuanLy:
         scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
         tree.configure(yscrollcommand=scrollbar.set)
         
+        # --- THÊM THANH TÌM KIẾM ---
+        self.create_search_bar(self.content_frame, lambda keyword: self.view_invoice.load_view(tree, keyword))
+
+        table_frame.pack(fill=tk.BOTH, expand=True)
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        self.view_invoice.load_view(tree)
+        self.view_invoice.load_view(tree) # Tải ban đầu
     
     def manage_attendance(self):
         """Vẽ UI Chấm công nhân viên (Chức năng logic chính)"""
@@ -462,7 +520,7 @@ class QuanLy:
         ttk.Label(
             date_frame,
             text="Ngày chấm công:",
-            style='Content.TLabel',
+            style='Std.TLabel',
             font=self.font_label
         ).pack(side=tk.LEFT, padx=(0, 10))
         
@@ -479,7 +537,8 @@ class QuanLy:
             date_frame,
             text="Tải dữ liệu",
             style='Func.TButton',
-            command=self.logic_attendance.load_attendance
+            command=self.logic_attendance.load_attendance,
+            cursor="hand2"
         ).pack(side=tk.LEFT, padx=10)
         
         table_frame = ttk.Frame(self.content_frame, style='Content.TFrame')
