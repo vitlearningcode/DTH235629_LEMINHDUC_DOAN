@@ -6,7 +6,7 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
 from database_connection import DatabaseConnection
-from datetime import datetime
+from datetime import datetime, date
 
 # --- IMPORT TẤT CẢ CÁC LỚP LOGIC ---
 from Function.function_Admin.admin_dashboard_logic import AdminDashboardLogic
@@ -21,7 +21,8 @@ from Function.function_Admin.admin_system_logic import AdminSystemLogic
 #-------------------------------------------------------------------------
 # imoport mới đưa vào ở đây hieu
 from Function.function_Admin.admin_warehouse_logic import AdminWarehouseLogic
-
+#-------------------------------------------------------------------------
+from Function.function_Admin.admin_attendance_logic import AdminAttendanceLogic
 # --- KHÔNG CẦN IMPORT LOGIN TẠI ĐÂY ---
 
 class Admin:
@@ -57,6 +58,8 @@ class Admin:
         #-------------------------------------------------------------------------
         # dòng mới đc hieu thêm vào
         self.warehouse_logic = AdminWarehouseLogic(self)
+        #-------------------------------------------------------------------------
+        self.attend_logic = AdminAttendanceLogic(self)
 
         self.setup_ui()
         self.window.protocol("WM_DELETE_WINDOW", self.system_logic.on_closing)
@@ -376,12 +379,57 @@ class Admin:
     def manage_invoices(self):
         """Hiển thị UI Quản lý hóa đơn"""
         self.clear_content()
-        tk.Label(self.content_frame, text="QUẢN LÝ HÓA ĐƠN", font=("Arial", 18, "bold"), bg=self.bg_color).pack(pady=10)
+        tk.Label(self.content_frame, text="QUẢN LÝ HÓA ĐƠN", font=("Arial", 18, "bold"), bg=self.bg_color, fg="#003366").pack(pady=10)
+
+        # --- KHUNG NÚT BẤM ---
+        btn_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        btn_frame.pack(pady=10, fill=tk.X, padx=20)
         
+        tk.Button(
+            btn_frame, text="🔍 Xem Chi Tiết", font=("Arial", 11, "bold"), bg="#007bff", fg="white", 
+            command=self.invoice_logic.show_invoice_details, # <-- Logic mới sẽ được thêm
+            width=20, height=2
+        ).pack(side=tk.LEFT, padx=10)
+        
+        tk.Button(
+            btn_frame, text="🔄 Tải lại", font=("Arial", 11, "bold"), bg="#17a2b8", fg="white",
+            command=self.manage_invoices, # Tải lại chính nó
+            width=20, height=2
+        ).pack(side=tk.LEFT, padx=10)
+
+        # --- KHUNG HIỂN THỊ DANH SÁCH ---
+        table_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        table_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
         columns = ("Mã HĐ", "Khách hàng", "Nhân viên", "Ngày lập", "Tổng tiền", "Thanh toán", "Còn nợ", "Trạng thái")
-        self.invoice_tree = ttk.Treeview(self.content_frame, columns=columns, show="headings", height=20)
-        for col in columns: self.invoice_tree.heading(col, text=col)
-        self.invoice_tree.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        self.invoice_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=20)
+        
+        # Định dạng cột
+        self.invoice_tree.heading("Mã HĐ", text="Mã HĐ")
+        self.invoice_tree.column("Mã HĐ", width=60, anchor="center")
+        self.invoice_tree.heading("Khách hàng", text="Khách hàng")
+        self.invoice_tree.column("Khách hàng", width=200)
+        self.invoice_tree.heading("Nhân viên", text="Nhân viên")
+        self.invoice_tree.column("Nhân viên", width=200)
+        self.invoice_tree.heading("Ngày lập", text="Ngày lập")
+        self.invoice_tree.column("Ngày lập", width=130, anchor="center")
+        self.invoice_tree.heading("Tổng tiền", text="Tổng tiền")
+        self.invoice_tree.column("Tổng tiền", width=120, anchor="e")
+        self.invoice_tree.heading("Thanh toán", text="Thanh toán")
+        self.invoice_tree.column("Thanh toán", width=120, anchor="e")
+        self.invoice_tree.heading("Còn nợ", text="Còn nợ")
+        self.invoice_tree.column("Còn nợ", width=100, anchor="e")
+        self.invoice_tree.heading("Trạng thái", text="Trạng thái")
+        self.invoice_tree.column("Trạng thái", width=100, anchor="center")
+
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.invoice_tree.yview)
+        self.invoice_tree.configure(yscrollcommand=scrollbar.set)
+        
+        self.invoice_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Thêm sự kiện double-click
+        self.invoice_tree.bind("<Double-1>", lambda e: self.invoice_logic.show_invoice_details())
         
         self.invoice_logic.load_invoices()
 
@@ -441,11 +489,86 @@ class Admin:
         
         self.promo_logic.load_promotions() # Tải dữ liệu
 
-    def manage_attendance(self):
-        """Hiển thị UI Quản lý chấm công (Placeholder)"""
-        self.clear_content()
-        tk.Label(self.content_frame, text="QUẢN LÝ CHẤM CÔNG (Đang phát triển)", font=("Arial", 18, "bold"), bg=self.bg_color).pack(pady=20)
+    # Mở file: main/UI/admin_window.py
+# THAY THẾ toàn bộ hàm manage_attendance CŨ bằng hàm MỚI này:
 
+    def manage_attendance(self):
+        """Vẽ UI Chấm công nhân viên (Chức năng logic chính)"""
+        self.clear_content()
+        
+        tk.Label(
+            self.content_frame,
+            text="CHẤM CÔNG NHÂN VIÊN",
+            font=("Arial", 18, "bold"), 
+            bg=self.bg_color, 
+            fg="#003366"
+        ).pack(pady=(0, 10))
+        
+        date_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        date_frame.pack(pady=10, fill=tk.X, padx=20)
+        
+        tk.Label(
+            date_frame,
+            text="Ngày chấm công (YYYY-MM-DD):",
+            font=("Arial", 11),
+            bg=self.bg_color
+        ).pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.date_var = tk.StringVar(value=date.today().strftime('%Y-%m-%d'))
+        date_entry = tk.Entry(
+            date_frame, 
+            textvariable=self.date_var, 
+            font=("Arial", 11), 
+            width=15
+        )
+        date_entry.pack(side=tk.LEFT, padx=10)
+        
+        tk.Button(
+            date_frame,
+            text="Tải dữ liệu",
+            font=("Arial", 10, "bold"),
+            bg=self.btn_color,
+            fg="white",
+            command=self.attend_logic.load_attendance, # <-- Đã đổi
+            cursor="hand2"
+        ).pack(side=tk.LEFT, padx=10, ipady=4)
+        
+        table_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        table_frame.pack(fill=tk.BOTH, expand=True, pady=(10,0), padx=20)
+        
+        columns = ("ID", "Họ tên", "Giờ vào", "Giờ ra", "Số giờ làm", "Trạng thái")
+        self.attendance_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=20)
+        
+        tree = self.attendance_tree
+        for col in columns:
+            tree.heading(col, text=col)
+            width = 150 if col == "Họ tên" else 100
+            tree.column(col, width=width, anchor="center")
+        
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        
+        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        btn_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        btn_frame.pack(pady=10)
+        
+        tk.Button(
+            btn_frame,
+            text="✓ Chấm công (Thêm/Sửa)",
+            font=("Arial", 11, "bold"),
+            bg="#28a745",
+            fg="white",
+            command=self.attend_logic.add_attendance, # <-- Đã đổi
+            relief="flat",
+            padx=10,
+            pady=5,
+            cursor="hand2"
+        ).pack(side=tk.LEFT, padx=5)
+        
+        self.attend_logic.load_attendance() # Tải dữ liệu ban đầu
+        
     def show_reports(self):
         """Hiển thị UI Báo cáo thống kê"""
         self.clear_content()
