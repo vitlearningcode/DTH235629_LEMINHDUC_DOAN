@@ -261,6 +261,10 @@ class Admin:
         buttons = [
             ("➕ Tạo Phiếu Nhập Mới", "#28a745", self.warehouse_logic.add_phieu_nhap),
             ("🔍 Xem Chi Tiết", "#007bff", self.warehouse_logic.view_chi_tiet),
+            ("✅ Xác Nhận Phiếu", "#218838", self.warehouse_logic.confirm_phieu_nhap), 
+            
+            # NÚT MỚI: HỦY PHIẾU
+            ("⚠️ Hủy Phiếu", "#ffc107", self.warehouse_logic.cancel_phieu_nhap),
             ("🗑️ Xóa Phiếu Nhập", "#dc3545", self.warehouse_logic.delete_phieu_nhap),
             ("🔄 Tải lại", "#17a2b8", self.manage_warehouse) 
         ]
@@ -328,14 +332,58 @@ class Admin:
     def manage_promotions(self):
         """Hiển thị UI Quản lý khuyến mãi"""
         self.clear_content()
-        tk.Label(self.content_frame, text="QUẢN LÝ KHUYẾN MÃI", font=("Arial", 18, "bold"), bg=self.bg_color).pack(pady=10)
+        tk.Label(self.content_frame, text="QUẢN LÝ KHUYẾN MÃI", font=("Arial", 18, "bold"), bg=self.bg_color, fg="#003366").pack(pady=10)
+        
+        # --- THÊM KHUNG NÚT BẤM ---
+        btn_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        btn_frame.pack(pady=10)
+        
+        buttons = [
+            ("➕ Thêm khuyến mãi", "#28a745", self.promo_logic.add_promotion),
+            ("✏️ Sửa khuyến mãi", "#ffc107", self.promo_logic.edit_promotion),
+            ("🗑️ Xóa khuyến mãi", "#dc3545", self.promo_logic.delete_promotion)
+        ]
+        
+        for text, bg, cmd in buttons:
+            tk.Button(btn_frame, text=text, font=("Arial", 11), bg=bg, fg="white", command=cmd, width=20).pack(side=tk.LEFT, padx=10)
+        
+        # --- KHUNG HIỂN THỊ DANH SÁCH ---
+        table_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        table_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
         
         columns = ("Mã", "Tên chương trình", "Loại", "Giá trị", "Từ ngày", "Đến ngày", "Trạng thái")
-        self.promo_tree = ttk.Treeview(self.content_frame, columns=columns, show="headings", height=22)
-        for col in columns: self.promo_tree.heading(col, text=col)
-        self.promo_tree.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        self.promo_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=22)
         
-        self.promo_logic.load_promotions()
+        # Định dạng các cột
+        self.promo_tree.heading("Mã", text="Mã")
+        self.promo_tree.column("Mã", width=50, anchor="center")
+        
+        self.promo_tree.heading("Tên chương trình", text="Tên chương trình")
+        self.promo_tree.column("Tên chương trình", width=300)
+        
+        self.promo_tree.heading("Loại", text="Loại")
+        self.promo_tree.column("Loại", width=100, anchor="center")
+        
+        self.promo_tree.heading("Giá trị", text="Giá trị")
+        self.promo_tree.column("Giá trị", width=120, anchor="e")
+        
+        self.promo_tree.heading("Từ ngày", text="Từ ngày")
+        self.promo_tree.column("Từ ngày", width=100, anchor="center")
+        
+        self.promo_tree.heading("Đến ngày", text="Đến ngày")
+        self.promo_tree.column("Đến ngày", width=100, anchor="center")
+        
+        self.promo_tree.heading("Trạng thái", text="Trạng thái")
+        self.promo_tree.column("Trạng thái", width=100, anchor="center")
+
+        # Scrollbar
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.promo_tree.yview)
+        self.promo_tree.configure(yscrollcommand=scrollbar.set)
+        
+        self.promo_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        self.promo_logic.load_promotions() # Tải dữ liệu
 
     def manage_attendance(self):
         """Hiển thị UI Quản lý chấm công (Placeholder)"""

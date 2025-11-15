@@ -1,5 +1,6 @@
 # main/Function/function_Admin/admin_invoice_logic.py
 
+import tkinter as tk    
 class AdminInvoiceLogic:
     def __init__(self, view):
         self.view = view
