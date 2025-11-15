@@ -298,24 +298,80 @@ class Admin:
 
 
 
+    # Mở file: main/UI/admin_window.py
+# THAY THẾ toàn bộ hàm manage_customers CŨ bằng hàm MỚI này:
+
     def manage_customers(self):
         """Hiển thị UI Quản lý khách hàng"""
         self.clear_content()
-        tk.Label(self.content_frame, text="QUẢN LÝ KHÁCH HÀNG", font=("Arial", 18, "bold"), bg=self.bg_color).pack(pady=10)
+        tk.Label(self.content_frame, text="QUẢN LÝ KHÁCH HÀNG", font=("Arial", 18, "bold"), bg=self.bg_color, fg="#003366").pack(pady=10)
         
-        search_frame = tk.Frame(self.content_frame, bg=self.bg_color)
-        search_frame.pack(pady=10)
-        tk.Label(search_frame, text="Tìm kiếm:", bg=self.bg_color).pack(side=tk.LEFT, padx=5)
-        search_entry = tk.Entry(search_frame, font=("Arial", 11), width=30)
-        search_entry.pack(side=tk.LEFT, padx=5)
-        tk.Button(search_frame, text="🔍 Tìm", bg=self.btn_color, fg="white", command=lambda: self.cust_logic.search_customers(search_entry.get())).pack(side=tk.LEFT, padx=5)
+        # --- KHUNG CHỨC NĂNG (TÌM KIẾM + NÚT BẤM) ---
+        func_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        func_frame.pack(pady=10, fill=tk.X, padx=20)
+        
+        tk.Label(func_frame, text="Tìm kiếm (theo Tên hoặc SĐT):", bg=self.bg_color, font=("Arial", 11)).pack(side=tk.LEFT, padx=(0, 5))
+        
+        search_entry = tk.Entry(func_frame, font=("Arial", 11), width=25)
+        search_entry.pack(side=tk.LEFT, padx=5, ipady=4)
+        
+        # Nút Tìm kiếm (gọi load_customers với từ khóa)
+        tk.Button(
+            func_frame, text="🔍 Tìm", font=("Arial", 10, "bold"), bg=self.btn_color, fg="white", 
+            command=lambda: self.cust_logic.load_customers(search_entry.get())
+        ).pack(side=tk.LEFT, padx=5, ipady=4)
+        
+        # Nút Làm mới (gọi load_customers không có từ khóa)
+        tk.Button(
+            func_frame, text="🔄 Làm mới", font=("Arial", 10, "bold"), bg="#17a2b8", fg="white",
+            command=lambda: (search_entry.delete(0, tk.END), self.cust_logic.load_customers())
+        ).pack(side=tk.LEFT, padx=5, ipady=4)
+        
+        # Các nút nghiệp vụ
+        tk.Button(
+            func_frame, text="➕ Thêm Khách Hàng", font=("Arial", 10, "bold"), bg="#28a745", fg="white", 
+            command=self.cust_logic.add_customer
+        ).pack(side=tk.LEFT, padx=(20, 5), ipady=4)
+        
+        tk.Button(
+            func_frame, text="✏️ Sửa Thông Tin", font=("Arial", 10, "bold"), bg="#ffc107", fg="white",
+            command=self.cust_logic.edit_customer
+        ).pack(side=tk.LEFT, padx=5, ipady=4)
+        
+        tk.Button(
+            func_frame, text="🗑️ Xóa Khách Hàng", font=("Arial", 10, "bold"), bg="#dc3545", fg="white",
+            command=self.cust_logic.delete_customer
+        ).pack(side=tk.LEFT, padx=5, ipady=4)
+
+        # --- KHUNG HIỂN THỊ DANH SÁCH ---
+        table_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        table_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
         
         columns = ("Mã", "Họ tên", "SĐT", "Email", "Địa chỉ", "Loại KH", "Ngày tạo")
-        self.customer_tree = ttk.Treeview(self.content_frame, columns=columns, show="headings", height=22)
-        for col in columns: self.customer_tree.heading(col, text=col)
-        self.customer_tree.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        self.customer_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=22)
         
-        self.cust_logic.load_customers()
+        self.customer_tree.heading("Mã", text="Mã")
+        self.customer_tree.column("Mã", width=50, anchor="center")
+        self.customer_tree.heading("Họ tên", text="Họ tên")
+        self.customer_tree.column("Họ tên", width=200)
+        self.customer_tree.heading("SĐT", text="SĐT")
+        self.customer_tree.column("SĐT", width=120, anchor="center")
+        self.customer_tree.heading("Email", text="Email")
+        self.customer_tree.column("Email", width=200)
+        self.customer_tree.heading("Địa chỉ", text="Địa chỉ")
+        self.customer_tree.column("Địa chỉ", width=250)
+        self.customer_tree.heading("Loại KH", text="Loại KH")
+        self.customer_tree.column("Loại KH", width=100, anchor="center")
+        self.customer_tree.heading("Ngày tạo", text="Ngày tạo")
+        self.customer_tree.column("Ngày tạo", width=120, anchor="center")
+
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.customer_tree.yview)
+        self.customer_tree.configure(yscrollcommand=scrollbar.set)
+        
+        self.customer_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        self.cust_logic.load_customers() # Tải dữ liệu ban đầu
 
     def manage_invoices(self):
         """Hiển thị UI Quản lý hóa đơn"""
