@@ -23,6 +23,8 @@ from Function.function_Admin.admin_system_logic import AdminSystemLogic
 from Function.function_Admin.admin_warehouse_logic import AdminWarehouseLogic
 #-------------------------------------------------------------------------
 from Function.function_Admin.admin_attendance_logic import AdminAttendanceLogic
+#-------------------------------------------------------------------------
+from Function.function_Admin.admin_warranty_logic import AdminWarrantyLogic
 # --- KHÔNG CẦN IMPORT LOGIN TẠI ĐÂY ---
 
 class Admin:
@@ -60,6 +62,8 @@ class Admin:
         self.warehouse_logic = AdminWarehouseLogic(self)
         #-------------------------------------------------------------------------
         self.attend_logic = AdminAttendanceLogic(self)
+        #-------------------------------------------------------------------------
+        self.warranty_logic = AdminWarrantyLogic(self)
 
         self.setup_ui()
         self.window.protocol("WM_DELETE_WINDOW", self.system_logic.on_closing)
@@ -119,6 +123,7 @@ class Admin:
             ("👤 Quản lý khách hàng", self.manage_customers),
             ("📄 Quản lý hóa đơn", self.manage_invoices),
             ("⏰ Quản lý chấm công", self.manage_attendance),
+            ("🛡️ Quản lý Bảo hành", self.manage_warranty),
             ("📊 Báo cáo thống kê", self.show_reports)
         ]
         
@@ -568,7 +573,115 @@ class Admin:
         ).pack(side=tk.LEFT, padx=5)
         
         self.attend_logic.load_attendance() # Tải dữ liệu ban đầu
+
+    # Mở file: main/UI/admin_window.py
+# BỔ SUNG HÀM MỚI NÀY vào gần cuối file (ví dụ: bên trên hàm manage_reports)
+
+    def manage_warranty(self):
+        """Vẽ Màn hình Quản lý Bảo hành & Sửa chữa (Admin)"""
+        self.clear_content()
         
+        tk.Label(
+            self.content_frame,
+            text="QUẢN LÝ BẢO HÀNH VÀ SỬA CHỮA",
+            font=("Arial", 18, "bold"),
+            bg=self.bg_color,
+            fg="#003366"
+        ).pack(pady=10)
+        
+        # --- KHUNG TÌM KIẾM ---
+        search_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        search_frame.pack(pady=10, fill=tk.X, padx=20)
+        
+        tk.Label(search_frame, text="Tìm (Tên KH, SĐT, Tên Xe):", bg=self.bg_color, font=("Arial", 11)).pack(side=tk.LEFT, padx=(0, 5))
+        search_entry = tk.Entry(search_frame, font=("Arial", 11), width=30)
+        search_entry.pack(side=tk.LEFT, padx=5, ipady=4)
+        
+        tk.Button(
+            search_frame, text="🔍 Tìm", font=("Arial", 10, "bold"), bg=self.btn_color, fg="white", 
+            command=lambda: self.warranty_logic.load_all_warranties(search_entry.get())
+        ).pack(side=tk.LEFT, padx=5, ipady=4)
+        
+        tk.Button(
+            search_frame, text="🔄 Tải lại", font=("Arial", 10, "bold"), bg="#17a2b8", fg="white",
+            command=lambda: (search_entry.delete(0, tk.END), self.warranty_logic.load_all_warranties())
+        ).pack(side=tk.LEFT, padx=5, ipady=4)
+
+        # --- KHUNG NỘI DUNG CHIA ĐÔI ---
+        main_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        
+        # --- CỘT TRÁI: DANH SÁCH PHIẾU BẢO HÀNH ---
+        left_frame = tk.Frame(main_frame, bg=self.bg_color)
+        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+
+        warranty_frame = tk.LabelFrame(left_frame, text="Tất cả Phiếu Bảo Hành", 
+                                       font=("Arial", 12, "bold"), bg="white", padx=10, pady=10)
+        warranty_frame.pack(fill=tk.BOTH, expand=True)
+        
+        cols_warranty = ("ID", "Khách Hàng", "SĐT", "Tên Xe", "Từ Ngày", "Đến Ngày", "Trạng Thái")
+        self.warranty_tree = ttk.Treeview(warranty_frame, columns=cols_warranty, show="headings", height=15)
+        for col in cols_warranty: self.warranty_tree.heading(col, text=col)
+        
+        self.warranty_tree.column("ID", width=40, anchor="center")
+        self.warranty_tree.column("Khách Hàng", width=150)
+        self.warranty_tree.column("SĐT", width=100, anchor="center")
+        self.warranty_tree.column("Tên Xe", width=150)
+        self.warranty_tree.column("Từ Ngày", width=90, anchor="center")
+        self.warranty_tree.column("Đến Ngày", width=90, anchor="center")
+        self.warranty_tree.column("Trạng Thái", width=90, anchor="center")
+        
+        self.warranty_tree.bind("<<TreeviewSelect>>", self.warranty_logic.on_warranty_select)
+        
+        self.warranty_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar_left = ttk.Scrollbar(warranty_frame, orient="vertical", command=self.warranty_tree.yview)
+        self.warranty_tree.configure(yscrollcommand=scrollbar_left.set)
+        scrollbar_left.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Nút xóa Phiếu Bảo Hành
+        tk.Button(
+            left_frame, text="🗑️ Xóa Phiếu Bảo Hành (Bên trái)", font=("Arial", 10, "bold"), bg="#dc3545", fg="white",
+            command=self.warranty_logic.delete_warranty_entry
+        ).pack(pady=10)
+
+        # --- CỘT PHẢI: LỊCH SỬ SỬA CHỮA ---
+        right_frame = tk.Frame(main_frame, bg=self.bg_color)
+        right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
+        
+        history_frame = tk.LabelFrame(right_frame, text="Lịch Sử Sửa Chữa (của phiếu đã chọn)", 
+                                   font=("Arial", 12, "bold"), bg="white", padx=10, pady=10)
+        history_frame.pack(fill=tk.BOTH, expand=True)
+        
+        cols_history = ("ID LS", "Ngày Sửa", "Mô Tả Lỗi", "Người Xử Lý", "Chi Phí", "Trạng Thái")
+        self.history_tree = ttk.Treeview(history_frame, columns=cols_history, show="headings", height=15)
+        
+        self.history_tree.heading("ID LS", text="ID")
+        self.history_tree.column("ID LS", width=40, anchor="center")
+        self.history_tree.heading("Ngày Sửa", text="Ngày Sửa")
+        self.history_tree.column("Ngày Sửa", width=90, anchor="center")
+        self.history_tree.heading("Mô Tả Lỗi", text="Mô Tả Lỗi")
+        self.history_tree.column("Mô Tả Lỗi", width=200)
+        self.history_tree.heading("Người Xử Lý", text="Người Xử Lý")
+        self.history_tree.column("Người Xử Lý", width=120)
+        self.history_tree.heading("Chi Phí", text="Chi Phí")
+        self.history_tree.column("Chi Phí", width=90, anchor="e")
+        self.history_tree.heading("Trạng Thái", text="Trạng Thái")
+        self.history_tree.column("Trạng Thái", width=90, anchor="center")
+        
+        self.history_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar_right = ttk.Scrollbar(history_frame, orient="vertical", command=self.history_tree.yview)
+        self.history_tree.configure(yscrollcommand=scrollbar_right.set)
+        scrollbar_right.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Nút xóa Lịch Sử Sửa Chữa
+        tk.Button(
+            right_frame, text="🗑️ Xóa Lịch Sử Sửa Chữa (Bên phải)", font=("Arial", 10, "bold"), bg="#ffc107", fg="black",
+            command=self.warranty_logic.delete_history_entry
+        ).pack(pady=10)
+        
+        # Tải dữ liệu ban đầu
+        self.warranty_logic.load_all_warranties()
+
     def show_reports(self):
         """Hiển thị UI Báo cáo thống kê"""
         self.clear_content()

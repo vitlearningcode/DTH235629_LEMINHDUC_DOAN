@@ -13,6 +13,9 @@ from Function.function_NhanVien.nhanvien_sales_logic import NhanVienSalesLogic
 from Function.function_NhanVien.nhanvien_customer_logic import NhanVienCustomerLogic
 from Function.function_NhanVien.nhanvien_invoice_logic import NhanVienInvoiceLogic
 from Function.function_NhanVien.nhanvien_system_logic import NhanVienSystemLogic
+#-------------------------------------------------------------------------
+#hieu them vao 
+from Function.function_NhanVien.nhanvien_service_logic import NhanVienServiceLogic
 
 # --- KHÔNG CẦN IMPORT LOGIN TẠI ĐÂY ---
 
@@ -44,6 +47,7 @@ class NhanVien:
         self.cust_logic = NhanVienCustomerLogic(self)
         self.invoice_logic = NhanVienInvoiceLogic(self)
         self.system_logic = NhanVienSystemLogic(self)
+        self.service_logic = NhanVienServiceLogic(self)
         
         self.setup_ui()
         self.window.protocol("WM_DELETE_WINDOW", self.system_logic.on_closing)
@@ -280,21 +284,101 @@ class NhanVien:
             height=2
         ).pack(fill=tk.X, pady=10)
     
+    # Mở file: main/UI/nhanvien_window.py
+# THAY THẾ toàn bộ hàm show_service_screen CŨ bằng hàm MỚI này:
+
     def show_service_screen(self):
         """Vẽ Màn hình dịch vụ sửa chữa"""
         self.clear_content()
+        
         tk.Label(
             self.content_frame,
-            text="DỊCH VỤ SỬA CHỮA - BẢO DƯỠNG",
+            text="TIẾP NHẬN DỊCH VỤ - BẢO HÀNH",
             font=("Arial", 18, "bold"),
-            bg=self.bg_color
-        ).pack(pady=20)
-        tk.Label(
-            self.content_frame,
-            text="Chức năng tương tự bán hàng\nNhưng sử dụng bảng PhuTung thay vì SanPham",
-            font=("Arial", 12),
-            bg=self.bg_color
-        ).pack(pady=20)
+            bg=self.bg_color,
+            fg="#003366"
+        ).pack(pady=10)
+        
+        main_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        
+        # --- CỘT TRÁI: TÌM KIẾM VÀ DANH SÁCH BẢO HÀNH ---
+        left_frame = tk.Frame(main_frame, bg=self.bg_color)
+        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10)
+
+        # 1. Khung tìm khách hàng
+        customer_frame = tk.LabelFrame(left_frame, text="Tìm Khách Hàng", 
+                                       font=("Arial", 12, "bold"), bg="white", padx=10, pady=10)
+        customer_frame.pack(fill=tk.X, pady=10)
+        
+        tk.Label(customer_frame, text="SĐT Khách hàng:", font=("Arial", 11), bg="white").grid(row=0, column=0, sticky="w", pady=5)
+        # Gán Entry vào self.view (tức là self) để logic có thể truy cập
+        self.service_phone_entry = tk.Entry(customer_frame, font=("Arial", 11), width=20)
+        self.service_phone_entry.grid(row=0, column=1, pady=5, padx=5)
+        
+        tk.Button(
+            customer_frame, text="🔍 Tìm", font=("Arial", 10), bg=self.btn_color, fg="white",
+            command=self.service_logic.search_customer_by_phone
+        ).grid(row=0, column=2, pady=5, padx=5)
+        
+        tk.Label(customer_frame, text="Họ tên:", font=("Arial", 11), bg="white").grid(row=1, column=0, sticky="w", pady=5)
+        self.service_customer_name_var = tk.StringVar(value="Vui lòng tìm SĐT...")
+        tk.Entry(customer_frame, textvariable=self.service_customer_name_var, font=("Arial", 11), width=40, state="readonly").grid(row=1, column=1, columnspan=2, pady=5, padx=5, sticky="w")
+
+        # 2. Khung danh sách phiếu bảo hành
+        warranty_frame = tk.LabelFrame(left_frame, text="Danh sách Phiếu Bảo Hành (Xe đã mua)", 
+                                       font=("Arial", 12, "bold"), bg="white", padx=10, pady=10)
+        warranty_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+        
+        cols_warranty = ("ID", "Tên Xe", "Từ Ngày", "Đến Ngày", "Trạng Thái")
+        self.warranty_tree = ttk.Treeview(warranty_frame, columns=cols_warranty, show="headings", height=15)
+        for col in cols_warranty: self.warranty_tree.heading(col, text=col)
+        
+        self.warranty_tree.column("ID", width=40, anchor="center")
+        self.warranty_tree.column("Tên Xe", width=200)
+        self.warranty_tree.column("Từ Ngày", width=100, anchor="center")
+        self.warranty_tree.column("Đến Ngày", width=100, anchor="center")
+        self.warranty_tree.column("Trạng Thái", width=100, anchor="center")
+        
+        # Gán sự kiện click (chọn) vào hàm logic
+        self.warranty_tree.bind("<<TreeviewSelect>>", self.service_logic.on_warranty_select)
+        
+        self.warranty_tree.pack(fill=tk.BOTH, expand=True)
+
+        # --- CỘT PHẢI: LỊCH SỬ SỬA CHỮA ---
+        right_frame = tk.Frame(main_frame, bg=self.bg_color, width=500)
+        right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, padx=10)
+        right_frame.pack_propagate(False)
+        
+        history_frame = tk.LabelFrame(right_frame, text="Lịch Sử Sửa Chữa (của phiếu đã chọn)", 
+                                   font=("Arial", 12, "bold"), bg="white", padx=10, pady=10)
+        history_frame.pack(fill=tk.BOTH, expand=True)
+        
+        cols_history = ("Ngày Sửa", "Mô Tả Lỗi", "Người Xử Lý", "Chi Phí", "Trạng Thái")
+        self.history_tree = ttk.Treeview(history_frame, columns=cols_history, show="headings", height=12)
+        
+        self.history_tree.heading("Ngày Sửa", text="Ngày Sửa")
+        self.history_tree.column("Ngày Sửa", width=100, anchor="center")
+        self.history_tree.heading("Mô Tả Lỗi", text="Mô Tả Lỗi")
+        self.history_tree.column("Mô Tả Lỗi", width=250)
+        self.history_tree.heading("Người Xử Lý", text="Người Xử Lý")
+        self.history_tree.column("Người Xử Lý", width=150)
+        self.history_tree.heading("Chi Phí", text="Chi Phí")
+        self.history_tree.column("Chi Phí", width=100, anchor="e")
+        self.history_tree.heading("Trạng Thái", text="Trạng Thái")
+        self.history_tree.column("Trạng Thái", width=100, anchor="center")
+        
+        self.history_tree.pack(fill=tk.BOTH, expand=True)
+
+        tk.Button(
+            right_frame,
+            text="➕ Thêm Lịch Sử Sửa Chữa",
+            font=("Arial", 12, "bold"),
+            bg="#28a745",
+            fg="white",
+            command=self.service_logic.add_warranty_history_entry,
+            height=2
+        ).pack(fill=tk.X, pady=20)
     
     def view_products(self):
         """Vẽ Màn hình xem sản phẩm"""
