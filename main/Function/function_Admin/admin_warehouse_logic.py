@@ -33,9 +33,10 @@ class AdminWarehouseLogic:
             FROM PhieuNhapKho p
             LEFT JOIN NhaCungCap n ON p.MaNhaCungCap = n.MaNhaCungCap
             LEFT JOIN NguoiDung u ON p.MaNguoiDung = u.MaNguoiDung
-            ORDER BY p.MaPhieuNhap DESC
+            ORDER BY p.MaPhieuNhap ASC
         """
         phieu_nhap_list = self.db.fetch_all(query)
+        
         
         if phieu_nhap_list:
             for pn in phieu_nhap_list:
@@ -481,8 +482,98 @@ class AdminWarehouseLogic:
         except Exception as e:
             messagebox.showerror("Lỗi nghiêm trọng", f"Có lỗi xảy ra: {e}", parent=dialog)
 
+    # ... bên trong class AdminWarehouseLogic ...
+
+    # File: main/Function/function_Admin/admin_warehouse_logic.py
+# THAY THẾ 3 HÀM CŨ BẰNG 3 HÀM MỚI NÀY
+
+    def confirm_phieu_nhap(self):
+        """
+        Xác nhận phiếu: Cập nhật trạng thái VÀ CỘNG HÀNG VÀO KHO.
+        (Logic này chỉ chạy đúng nếu Trigger SQL đã được sửa)
+        """
+        selected = self.view.phieu_nhap_tree.selection()
+        if not selected:
+            messagebox.showwarning("Cảnh báo", "Vui lòng chọn phiếu nhập để xác nhận.")
+            return
+
+        item = self.view.phieu_nhap_tree.item(selected[0])
+        pn_id = item['values'][0]
+        trang_thai = item['values'][5]
+
+        if trang_thai != 'ChoXacNhan':
+            messagebox.showerror("Lỗi", f"Chỉ có thể xác nhận phiếu ở trạng thái 'Chờ Xác Nhận'.\nPhiếu này đang ở trạng thái '{trang_thai}'.")
+            return
+        
+        if messagebox.askyesno("Xác nhận", f"Bạn có chắc muốn xác nhận Phiếu Nhập #{pn_id}?\nHÀNG HÓA SẼ ĐƯỢC CỘNG VÀO KHO."):
+            try:
+                # BƯỚC 1: CỘNG TỒN KHO SẢN PHẨM (Đọc từ "list ảo")
+                query_sp = "SELECT MaSanPham, SoLuong FROM ChiTietPhieuNhapSanPham WHERE MaPhieuNhap = %s"
+                items_sp = self.db.fetch_all(query_sp, (pn_id,))
+                if items_sp:
+                    for item_sp in items_sp:
+                        update_sp_query = "UPDATE SanPham SET SoLuongTon = SoLuongTon + %s WHERE MaSanPham = %s"
+                        self.db.execute_query(update_sp_query, (item_sp['SoLuong'], item_sp['MaSanPham']))
+
+                # BƯỚC 2: CỘNG TỒN KHO PHỤ TÙNG (Đọc từ "list ảo")
+                query_pt = "SELECT MaPhuTung, SoLuong FROM ChiTietPhieuNhapPhuTung WHERE MaPhieuNhap = %s"
+                items_pt = self.db.fetch_all(query_pt, (pn_id,))
+                if items_pt:
+                    for item_pt in items_pt:
+                        update_pt_query = "UPDATE PhuTung SET SoLuongTon = SoLuongTon + %s WHERE MaPhuTung = %s"
+                        self.db.execute_query(update_pt_query, (item_pt['SoLuong'], item_pt['MaPhuTung']))
+
+                # BƯỚC 3: Cập nhật trạng thái phiếu
+                query = "UPDATE PhieuNhapKho SET TrangThai = 'DaXacNhan' WHERE MaPhieuNhap = %s"
+                result = self.db.execute_query(query, (pn_id,))
+                
+                if result:
+                    messagebox.showinfo("Thành công", f"Đã xác nhận Phiếu Nhập #{pn_id} và cập nhật kho.")
+                    self.load_phieu_nhap() # Tải lại danh sách
+                else:
+                    messagebox.showerror("Lỗi", "Không thể cập nhật trạng thái phiếu (sau khi đã cập nhật kho).")
+            except Exception as e:
+                messagebox.showerror("Lỗi CSDL", f"Không thể xác nhận: {e}")
+
+    def cancel_phieu_nhap(self):
+        """
+        Hủy phiếu: Chỉ đổi trạng thái. (Logic mới: Không cần trừ kho vì kho chưa được cộng)
+        """
+        selected = self.view.phieu_nhap_tree.selection()
+        if not selected:
+            messagebox.showwarning("Cảnh báo", "Vui lòng chọn phiếu nhập để hủy.")
+            return
+
+        item = self.view.phieu_nhap_tree.item(selected[0])
+        pn_id = item['values'][0]
+        trang_thai = item['values'][5]
+
+        if trang_thai != 'ChoXacNhan':
+            # Sửa: Cho phép Hủy cả phiếu 'DaXacNhan' nếu muốn, nhưng logic sẽ phức tạp (phải trừ kho)
+            # Giữ nguyên: Chỉ cho hủy phiếu 'ChoXacNhan'
+            messagebox.showerror("Lỗi", f"Chỉ có thể hủy phiếu ở trạng thái 'Chờ Xác Nhận'.\nPhiếu này đang ở trạng thái '{trang_thai}'.")
+            return
+        
+        if messagebox.askyesno("Xác nhận", f"Bạn có chắc muốn HỦY Phiếu Nhập #{pn_id}?\n(Kho hàng sẽ không bị ảnh hưởng)."):
+            try:
+                # Logic mới: Chỉ cần cập nhật trạng thái
+                query = "UPDATE PhieuNhapKho SET TrangThai = 'Huy' WHERE MaPhieuNhap = %s"
+                result = self.db.execute_query(query, (pn_id,))
+                
+                if result:
+                    messagebox.showinfo("Thành công", f"Đã hủy Phiếu Nhập #{pn_id}.")
+                    self.load_phieu_nhap() # Tải lại danh sách
+                else:
+                    messagebox.showerror("Lỗi", "Không thể cập nhật trạng thái phiếu nhập.")
+            except Exception as e:
+                messagebox.showerror("Lỗi CSDL", f"Không thể hủy: {e}")
+
     def delete_phieu_nhap(self):
-        """Xóa phiếu nhập (chỉ khi ở trạng thái 'ChoXacNhan')"""
+        """
+        Xóa phiếu nhập VĨNH VIỄN.
+        - Logic mới: KHÔNG ảnh hưởng đến kho ở bất kỳ trạng thái nào.
+        - CẢNH BÁO: Nếu xóa phiếu "DaXacNhan", kho sẽ bị sai lệch.
+        """
         selected = self.view.phieu_nhap_tree.selection()
         if not selected:
             messagebox.showwarning("Cảnh báo", "Vui lòng chọn phiếu nhập để xóa.")
@@ -492,23 +583,38 @@ class AdminWarehouseLogic:
         pn_id = item['values'][0]
         trang_thai = item['values'][5]
 
-        if trang_thai != 'ChoXacNhan':
-            messagebox.showerror("Lỗi", "Chỉ có thể xóa phiếu nhập ở trạng thái 'Chờ Xác Nhận'.")
+        # 1. Hiển thị cảnh báo tùy theo trạng thái
+        confirm_message = ""
+        if trang_thai == 'DaXacNhan':
+            confirm_message = (
+                f"Bạn có chắc muốn XÓA VĨNH VIỄN Phiếu Nhập #{pn_id}?\n\n"
+                f"CẢNH BÁO: Phiếu này đã 'Đã Xác Nhận'.\n"
+                f"Theo yêu cầu, việc xóa sẽ KHÔNG HOÀN TÁC KHO.\n"
+                f"==> Dữ liệu kho có thể bị SAI LỆCH."
+            )
+        else: # 'ChoXacNhan' or 'Huy'
+            confirm_message = (
+                f"Bạn có chắc muốn XÓA VĨNH VIỄN Phiếu Nhập #{pn_id}?\n"
+                f"(Kho hàng sẽ không bị ảnh hưởng)."
+            )
+
+        # Sử dụng icon 'warning' cho trường hợp nguy hiểm
+        if not messagebox.askyesno("Xác nhận xóa", confirm_message, icon='warning'):
             return
-        
-        if messagebox.askyesno("Xác nhận", f"Bạn có chắc muốn xóa Phiếu Nhập #{pn_id}?\nMọi chi tiết (nếu có) cũng sẽ bị xóa."):
-            try:
-                # Phải xóa chi tiết trước (theo ràng buộc khóa ngoại)
-                self.db.execute_query("DELETE FROM ChiTietPhieuNhapSanPham WHERE MaPhieuNhap = %s", (pn_id,))
-                self.db.execute_query("DELETE FROM ChiTietPhieuNhapPhuTung WHERE MaPhieuNhap = %s", (pn_id,))
-                
-                # Xóa phiếu nhập
-                result = self.db.execute_query("DELETE FROM PhieuNhapKho WHERE MaPhieuNhap = %s", (pn_id,))
-                
-                if result:
-                    messagebox.showinfo("Thành công", f"Đã xóa Phiếu Nhập #{pn_id}.")
-                    self.load_phieu_nhap()
-                else:
-                    messagebox.showerror("Lỗi", "Không thể xóa phiếu nhập.")
-            except Exception as e:
-                messagebox.showerror("Lỗi CSDL", f"Không thể xóa: {e}")
+
+        # 2. Bắt đầu quá trình xóa (Không còn logic trừ kho)
+        try:
+            # BƯỚC A: Xóa các bảng chi tiết ("list ảo")
+            self.db.execute_query("DELETE FROM ChiTietPhieuNhapSanPham WHERE MaPhieuNhap = %s", (pn_id,))
+            self.db.execute_query("DELETE FROM ChiTietPhieuNhapPhuTung WHERE MaPhieuNhap = %s", (pn_id,))
+            
+            # BƯỚC B: Xóa phiếu nhập chính
+            result = self.db.execute_query("DELETE FROM PhieuNhapKho WHERE MaPhieuNhap = %s", (pn_id,))
+            
+            if result:
+                messagebox.showinfo("Thành công", f"Đã xóa hoàn toàn Phiếu Nhập #{pn_id}.")
+                self.load_phieu_nhap() # Tải lại danh sách
+            else:
+                messagebox.showerror("Lỗi", "Không thể xóa phiếu nhập chính.")
+        except Exception as e:
+            messagebox.showerror("Lỗi CSDL", f"Một lỗi nghiêm trọng đã xảy ra khi xóa: {e}")
