@@ -56,8 +56,11 @@ class NhanVienSalesLogic:
                     p['SoLuongTon']
                 ))
 
+    # main/Function/function_NhanVien/nhanvien_sales_logic.py
+# (SAO CHÉP VÀ THAY THẾ HÀM NÀY)
+
     def add_to_cart(self):
-        """Thêm sản phẩm hoặc phụ tùng vào giỏ"""
+        """Thêm sản phẩm hoặc phụ tùng vào giỏ (Đã sửa để CỘNG DỒN số lượng)"""
         try:
             current_tab = self.view.tab_control.index(self.view.tab_control.select())
             
@@ -86,35 +89,63 @@ class NhanVienSalesLogic:
             price = float(values[3].replace(',', ''))
             stock = int(values[4])
             
-            for cart_item in self.view.cart_items:
-                if cart_item['id'] == item_id and cart_item['type'] == item_type:
-                    messagebox.showwarning("Thông báo", f"'{name}' đã có trong giỏ hàng.")
-                    return
+            # --- BẮT ĐẦU SỬA ĐỔI ---
 
-            quantity = tk.simpledialog.askinteger(
+            # 1. Hỏi số lượng muốn THÊM
+            quantity_to_add = tk.simpledialog.askinteger(
                 "Số lượng", 
-                f"Nhập số lượng cho:\n{name}\n(Tồn kho: {stock})", 
+                f"Nhập số lượng MUỐN THÊM cho:\n{name}\n(Tồn kho: {stock})", 
                 minvalue=1, 
-                maxvalue=stock
+                maxvalue=stock # Giới hạn tối đa 1 lần thêm là tồn kho
             )
             
-            if quantity:
-                if quantity > stock:
-                    messagebox.showwarning("Cảnh báo", "Số lượng vượt quá tồn kho!")
-                    return
-                
-                total = price * quantity
-                
-                self.view.cart_items.append({
-                    'id': item_id,
-                    'name': name,
-                    'quantity': quantity,
-                    'price': price,
-                    'total': total,
-                    'type': item_type
-                })
-                
-                self.update_cart_display() # Gọi hàm nội bộ
+            if not quantity_to_add:
+                return # Người dùng nhấn Cancel
+
+            # 2. Tìm trong giỏ hàng xem đã có chưa
+            for cart_item in self.view.cart_items:
+                if cart_item['id'] == item_id and cart_item['type'] == item_type:
+                    
+                    # --- ĐÃ TÌM THẤY: Cập nhật số lượng ---
+                    new_quantity = cart_item['quantity'] + quantity_to_add
+                    
+                    # Kiểm tra xem tổng số lượng mới có vượt tồn kho không
+                    if new_quantity > stock:
+                        messagebox.showwarning("Cảnh báo", 
+                                             f"Không đủ tồn kho!\n\n"
+                                             f"Đã có trong giỏ: {cart_item['quantity']}\n"
+                                             f"Muốn thêm: {quantity_to_add}\n"
+                                             f"Tổng: {new_quantity} (Vượt tồn kho: {stock})")
+                        return
+                    
+                    # Cập nhật lại giỏ hàng
+                    cart_item['quantity'] = new_quantity
+                    cart_item['total'] = cart_item['price'] * new_quantity
+                    
+                    self.update_cart_display() # Cập nhật UI
+                    return # --- Thoát hàm sau khi cập nhật
+            
+            # 3. CHƯA CÓ TRONG GIỎ: Thêm mới (Code này chỉ chạy nếu vòng lặp for ở trên không tìm thấy)
+            
+            # (Kiểm tra này thực ra đã được thực hiện bởi maxvalue, nhưng để an toàn)
+            if quantity_to_add > stock:
+                messagebox.showwarning("Cảnh báo", "Số lượng vượt quá tồn kho!")
+                return
+            
+            total = price * quantity_to_add
+            
+            self.view.cart_items.append({
+                'id': item_id,
+                'name': name,
+                'quantity': quantity_to_add, # Thêm số lượng vừa nhập
+                'price': price,
+                'total': total,
+                'type': item_type
+            })
+            
+            self.update_cart_display() # Cập nhật UI
+            
+            # --- KẾT THÚC SỬA ĐỔI ---
         
         except Exception as e:
             messagebox.showerror("Lỗi", f"Có lỗi xảy ra khi thêm vào giỏ: {e}")
