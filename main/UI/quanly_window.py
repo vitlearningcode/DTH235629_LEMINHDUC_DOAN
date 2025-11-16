@@ -59,7 +59,7 @@ class QuanLy:
         self.view_employee = QuanLyEmployeeViewLogic(self)
         self.view_product = QuanLyProductViewLogic(self)
         self.view_part = QuanLyPartViewLogic(self)
-        self.view_warehouse = QuanLyWarehouseViewLogic(self)
+        self.view_warehouse = QuanLyWarehouseViewLogic(self) # Đây là BIẾN LOGIC
         self.view_customer = QuanLyCustomerViewLogic(self)
         self.view_invoice = QuanLyInvoiceViewLogic(self)
         self.view_report = QuanLyReportViewLogic(self)
@@ -156,7 +156,7 @@ class QuanLy:
             ("👥 Xem nhân viên", self.view_employees),
             ("🏍️ Xem sản phẩm", self.view_products),
             ("🔧 Xem phụ tùng", self.view_parts),
-            ("📦 Xem kho", self.view_warehouse),
+            ("📦 Xem kho", self.show_warehouse_view), # <--- SỬA LỖI 1: Đổi lệnh gọi hàm
             ("👤 Xem khách hàng", self.view_customers),
             ("📄 Xem hóa đơn", self.view_invoices),
             ("⏰ Chấm công", self.manage_attendance),
@@ -584,7 +584,7 @@ class QuanLy:
         self.details_loai.bind("<<ComboboxSelected>>", self.view_part.check_for_changes)
 
     
-    def view_warehouse(self):
+    def show_warehouse_view(self): # <--- SỬA LỖI 2: Đổi tên hàm
         """Xem kho (Phiếu nhập kho)"""
         self.clear_content()
         ttk.Label(
