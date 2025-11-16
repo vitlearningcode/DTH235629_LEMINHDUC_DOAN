@@ -178,8 +178,11 @@ class NhanVienSalesLogic:
         
         self.view.total_label.config(text=f"{total:,.0f} VNĐ")
     
+   # main/Function/function_NhanVien/nhanvien_sales_logic.py
+# (SAO CHÉP VÀ THAY THẾ TOÀN BỘ HÀM NÀY)
+
     def process_payment(self):
-        """Xử lý thanh toán (Đã cập nhật cho phép Công Nợ)"""
+        """Xử lý thanh toán (Đã cập nhật cho phép Công Nợ VÀ TỰ TẠO BẢO HÀNH)"""
         if not self.view.cart_items:
             messagebox.showwarning("Cảnh báo", "Giỏ hàng trống!")
             return
@@ -238,18 +241,64 @@ class NhanVienSalesLogic:
                 messagebox.showerror("Lỗi", "Không thể tạo hóa đơn! (ID trả về null)")
                 return
 
-            # Thêm chi tiết hóa đơn (giữ nguyên)
+            # --- BẮT ĐẦU SỬA ĐỔI (NHIỆM VỤ 4) ---
+            
+            # Biến đếm số phiếu bảo hành đã tạo
+            total_warranties_created = 0
+
+            # Thêm chi tiết hóa đơn VÀ tạo phiếu bảo hành
             for item in self.view.cart_items:
                 if item['type'] == 'SanPham':
+                    # 1. Thêm chi tiết hóa đơn sản phẩm
                     detail_query = "INSERT INTO ChiTietHoaDonSanPham (MaHoaDon, MaSanPham, SoLuong, DonGia) VALUES (%s, %s, %s, %s)"
-                else: # 'PhuTung'
-                    detail_query = "INSERT INTO ChiTietHoaDonPhuTung (MaHoaDon, MaPhuTung, SoLuong, DonGia) VALUES (%s, %s, %s, %s)"
+                    params = (invoice_id, item['id'], item['quantity'], item['price'])
+                    self.db.execute_query(detail_query, params)
+                    
+                    # 2. Tự động tạo phiếu bảo hành cho sản phẩm này
+                    try:
+                        # Lấy thời hạn bảo hành (tính bằng tháng) từ bảng SanPham
+                        sp_query = "SELECT ThoiGianBaoHanh FROM SanPham WHERE MaSanPham = %s"
+                        product_data = self.db.fetch_one(sp_query, (item['id'],))
+                        
+                        thoi_gian_bao_hanh = 12 # Mặc định 12 tháng nếu không tìm thấy
+                        if product_data and product_data['ThoiGianBaoHanh']:
+                            thoi_gian_bao_hanh = int(product_data['ThoiGianBaoHanh'])
+                        
+                        # Query để tạo phiếu bảo hành
+                        query_bh = """
+                            INSERT INTO PhieuBaoHanh (MaHoaDon, MaSanPham, MaKhachHang, NgayBatDau, NgayKetThuc, TrangThai)
+                            VALUES (%s, %s, %s, GETDATE(), DATEADD(month, %s, GETDATE()), 'ConHieuLuc')
+                        """
+                        params_bh = (
+                            invoice_id,
+                            item['id'], # MaSanPham
+                            self.view.current_customer['MaKhachHang'],
+                            thoi_gian_bao_hanh
+                        )
+                        
+                        # Lặp N lần (N = số lượng xe) để tạo N phiếu bảo hành
+                        for _ in range(item['quantity']):
+                            self.db.execute_query(query_bh, params_bh)
+                            total_warranties_created += 1
+                            
+                    except Exception as e_bh:
+                        # Nếu tạo bảo hành lỗi, không dừng cả quy trình, chỉ thông báo
+                        print(f"Lỗi khi tạo phiếu bảo hành cho SP {item['id']}: {e_bh}")
+                        messagebox.showwarning("Lỗi Phụ", f"Tạo hóa đơn thành công, NHƯNG tạo phiếu bảo hành cho {item['name']} thất bại.\nLỗi: {e_bh}")
                 
-                params = (invoice_id, item['id'], item['quantity'], item['price'])
-                self.db.execute_query(detail_query, params)
+                else: # 'PhuTung'
+                    # 1. Thêm chi tiết hóa đơn phụ tùng (không tạo bảo hành)
+                    detail_query = "INSERT INTO ChiTietHoaDonPhuTung (MaHoaDon, MaPhuTung, SoLuong, DonGia) VALUES (%s, %s, %s, %s)"
+                    params = (invoice_id, item['id'], item['quantity'], item['price'])
+                    self.db.execute_query(detail_query, params)
             
-            messagebox.showinfo("Thành công", f"Tạo hóa đơn thành công!\nMã hóa đơn: {invoice_id}")
+            # Sửa thông báo thành công
+            messagebox.showinfo("Thành công", 
+                                f"Tạo hóa đơn thành công! (Mã hóa đơn: {invoice_id})\n"
+                                f"Đã tự động tạo {total_warranties_created} phiếu bảo hành cho xe.")
             
+            # --- KẾT THÚC SỬA ĐỔI ---
+
             # Reset
             self.view.cart_items = []
             self.update_cart_display()
