@@ -380,15 +380,139 @@ class NhanVien:
         ).pack(fill=tk.X, pady=20)
     
     def view_products(self):
-        """Vẽ Màn hình xem sản phẩm"""
+        """Vẽ Màn hình xem sản phẩm dưới dạng lưới 4 khung / hàng, cuộn dọc."""
         self.clear_content()
         tk.Label(
             self.content_frame,
             text="DANH SÁCH SẢN PHẨM",
             font=("Arial", 18, "bold"),
             bg=self.bg_color
-        ).pack(pady=20)
-    
+        ).pack(pady=10)
+
+        # Canvas + Scrollbar để cuộn dọc
+        container = tk.Frame(self.content_frame, bg=self.bg_color)
+        container.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        canvas = tk.Canvas(container, bg=self.bg_color, highlightthickness=0)
+        v_scroll = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=v_scroll.set)
+
+        v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # Frame bên trong canvas chứa các card
+        inner_frame = tk.Frame(canvas, bg=self.bg_color)
+        window_id = canvas.create_window((0, 0), window=inner_frame, anchor="nw")
+
+        # Đồng bộ width của inner_frame với canvas để các card hiển thị đúng
+        def _on_canvas_configure(event):
+            canvas.itemconfig(window_id, width=event.width)
+        canvas.bind("<Configure>", _on_canvas_configure)
+
+        # Lưu tham chiếu ảnh để tránh bị GC
+        self._product_images = []
+
+        def _on_configure(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+        inner_frame.bind("<Configure>", _on_configure)
+
+        # Hỗ trợ cuộn bằng chuột
+        def _on_mousewheel(event):
+            if event.delta:
+                canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            else:
+                if event.num == 4:
+                    canvas.yview_scroll(-1, "units")
+                elif event.num == 5:
+                    canvas.yview_scroll(1, "units")
+
+        # chỉ bind vào canvas (tránh bind_all gây ảnh hưởng nơi khác)
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        canvas.bind_all("<Button-4>", _on_mousewheel)
+        canvas.bind_all("<Button-5>", _on_mousewheel)
+
+        # Helper: điền sản phẩm vào lưới
+        def populate_product_grid(products):
+            for w in inner_frame.winfo_children():
+                w.destroy()
+            self._product_images.clear()
+
+            cols = 4
+            padx = 20
+            pady = 15
+
+            for idx, p in enumerate(products):
+                row = idx // cols
+                col = idx % cols
+
+                card = tk.Frame(inner_frame, width=180, height=200, bg="white", bd=1, relief=tk.RIDGE)
+                card.grid(row=row, column=col, padx=padx, pady=pady, sticky="n")
+                card.grid_propagate(False)
+
+                img_frame = tk.Frame(card, width=150, height=150, bg="white")
+                img_frame.pack(pady=(8,4))
+                img_frame.pack_propagate(False)
+
+                img_label = tk.Label(img_frame, bg="white")
+                img_label.pack(expand=True)
+
+                img_obj = None
+                try:
+                    from PIL import Image, ImageTk
+                    if p.get("image_path"):
+                        img = Image.open(p["image_path"]).convert("RGBA")
+                        img = img.resize((150,150), Image.LANCZOS)
+                        img_obj = ImageTk.PhotoImage(img)
+                except Exception:
+                    img_obj = None
+
+                if img_obj is None and p.get("image_path"):
+                    try:
+                        img_obj = tk.PhotoImage(file=p["image_path"])
+                    except Exception:
+                        img_obj = None
+
+                if img_obj:
+                    img_label.configure(image=img_obj)
+                    self._product_images.append(img_obj)
+                else:
+                    ph = tk.Canvas(img_frame, width=150, height=150, bg="#f0f0f0", highlightthickness=0)
+                    ph.create_rectangle(2,2,148,148, outline="#cccccc")
+                    ph.create_text(75,75, text="No Image", fill="#666666")
+                    ph.pack(fill=tk.BOTH, expand=True)
+
+                name = p.get("name", "Tên sản phẩm")
+                tk.Label(card, text=name, bg="white", wraplength=170, justify="center", font=("Arial", 10, "bold")).pack(pady=(4,0))
+
+                price = p.get("price", "")
+                price_text = f"{price} VNĐ" if price != "" else ""
+                tk.Label(card, text=price_text, bg="white", fg="red", font=("Arial", 10, "bold")).pack(pady=(2,6))
+
+            for c in range(cols):
+                inner_frame.grid_columnconfigure(c, weight=1, minsize=180)
+
+        # Cố gắng lấy dữ liệu từ logic nếu có
+        products = []
+        try:
+            if hasattr(self.sales_logic, "get_all_products"):
+                products = self.sales_logic.get_all_products() or []
+            elif hasattr(self.sales_logic, "load_products_for_view"):
+                products = self.sales_logic.load_products_for_view() or []
+            else:
+                try:
+                    rows = self.db.fetch_all("SELECT MaSP, TenSP, GiaBan, HinhAnh FROM SanPham")
+                    for r in rows:
+                        products.append({"name": r[1], "price": r[2], "image_path": r[3]})
+                except Exception:
+                    products = []
+        except Exception:
+            products = []
+
+        # Nếu rỗng thì tạo demo tạm để kiểm tra giao diện
+        if not products:
+            products = [{"name": f"Sản phẩm {i+1}", "price": "1.000.000", "image_path": None} for i in range(12)]
+
+        populate_product_grid(products)
     
     def view_invoice_history(self):
         """Vẽ Màn hình lịch sử hóa đơn"""
