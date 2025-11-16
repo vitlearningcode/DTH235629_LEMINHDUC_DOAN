@@ -16,6 +16,7 @@ from Function.function_NhanVien.nhanvien_system_logic import NhanVienSystemLogic
 #-------------------------------------------------------------------------
 #hieu them vao 
 from Function.function_NhanVien.nhanvien_service_logic import NhanVienServiceLogic
+from Function.function_NhanVien.nhanvien_product_view import NhanVienProductView
 
 # --- KHÔNG CẦN IMPORT LOGIN TẠI ĐÂY ---
 
@@ -48,6 +49,8 @@ class NhanVien:
         self.invoice_logic = NhanVienInvoiceLogic(self)
         self.system_logic = NhanVienSystemLogic(self)
         self.service_logic = NhanVienServiceLogic(self)
+        # Product view (tách UI/UX xem sản phẩm)
+        self.product_view = NhanVienProductView(self)
         
         self.setup_ui()
         self.window.protocol("WM_DELETE_WINDOW", self.system_logic.on_closing)
@@ -402,15 +405,8 @@ class NhanVien:
         ).pack(fill=tk.X, pady=20)
     
     def view_products(self):
-        """Vẽ Màn hình xem sản phẩm"""
-        self.clear_content()
-        tk.Label(
-            self.content_frame,
-            text="DANH SÁCH SẢN PHẨM",
-            font=("Arial", 18, "bold"),
-            bg=self.bg_color
-        ).pack(pady=20)
-    
+        """Gọi lớp tách riêng để hiển thị màn hình sản phẩm."""
+        return self.product_view.show()
     
     def view_invoice_history(self):
         """Vẽ Màn hình lịch sử hóa đơn"""
