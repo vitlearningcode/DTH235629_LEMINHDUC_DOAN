@@ -64,11 +64,44 @@ class Admin:
         self.attend_logic = AdminAttendanceLogic(self)
         #-------------------------------------------------------------------------
         self.warranty_logic = AdminWarrantyLogic(self)
-
+        #-------------------------------------------------------------------------
+        self.setup_styles()
         self.setup_ui()
         self.window.protocol("WM_DELETE_WINDOW", self.system_logic.on_closing)
         self.window.mainloop()
     
+    def setup_styles(self):
+        """Định nghĩa style cho các widget TTK"""
+        s = ttk.Style()
+        try:
+            s.theme_use('vista')
+        except tk.TclError:
+            pass 
+
+        # Đặt tên style dựa trên màu nền của Admin
+        s.configure('Content.TFrame', background=self.bg_color)
+        s.configure('Content.TLabel', background=self.bg_color, foreground="#003366", font=("Segoe UI", 16, "bold"))
+        s.configure('Menu.TFrame', background=self.menu_color)
+        s.configure('Menu.TLabel', background=self.menu_color, foreground=self.text_color, font=("Segoe UI", 14, "bold"))
+        
+        s.configure('Std.TLabel', background=self.bg_color, font=("Segoe UI", 12))
+        s.configure('Card.TFrame', background="white", relief="raised", borderwidth=2)
+        s.configure('Func.TButton', font=("Segoe UI", 10, "bold"), padding=5)
+        
+        # Style cho LabelFrame nền trắng (dùng cho Detail Pane)
+        s.configure('Details.TLabelframe', background="white", padding=10)
+        s.configure('Details.TLabelframe.Label', background="white", font=("Segoe UI", 12), foreground="#003366")
+        
+        # Style cho Label bên trong LabelFrame (nền trắng)
+        s.configure('Details.TLabel', background="white", font=("Segoe UI", 12))
+        
+        s.configure("Treeview", 
+                    rowheight=28, 
+                    font=("Segoe UI", 10),
+                    background="white",
+                    fieldbackground="white")
+        s.configure("Treeview.Heading", font=("Segoe UI", 10, "bold"))
+        s.layout("Treeview", [('Treeview.treearea', {'sticky': 'nswe'})]) # Bỏ viền
     def setup_ui(self):
         """Thiết lập giao diện chính (Chỉ UI)"""
         # Header
@@ -155,10 +188,56 @@ class Admin:
         """Xóa nội dung frame chính"""
         for widget in self.content_frame.winfo_children():
             widget.destroy()
+            
+    def create_search_bar(self, parent_frame, search_command):
+        """Tạo một frame chứa ô tìm kiếm (LIVE SEARCH)"""
+        search_frame = ttk.Frame(parent_frame, style='Content.TFrame')
+        search_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(
+            search_frame, 
+            text="Tìm kiếm:", 
+            style='Std.TLabel'
+        ).pack(side=tk.LEFT, padx=(0, 10))
+        
+        search_entry = ttk.Entry(
+            search_frame, 
+            font=("Segoe UI", 12), # Sử dụng font chuẩn
+            width=40
+        )
+        search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # Gán sự kiện <KeyRelease> để tìm kiếm live
+        search_entry.bind("<KeyRelease>", lambda e: search_command(search_entry.get()))
+        return search_entry
+            
+    
     
     # =================================================================
     # CÁC HÀM VẼ GIAO DIỆN (UI-DRAWING METHODS)
     # =================================================================
+    
+    def create_search_bar(self, parent_frame, search_command):
+        """Tạo một frame chứa ô tìm kiếm (LIVE SEARCH)"""
+        search_frame = ttk.Frame(parent_frame, style='Content.TFrame')
+        search_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(
+            search_frame, 
+            text="Tìm kiếm:", 
+            style='Std.TLabel'
+        ).pack(side=tk.LEFT, padx=(0, 10))
+        
+        search_entry = ttk.Entry(
+            search_frame, 
+            font=("Segoe UI", 12), # Sử dụng font chuẩn
+            width=40
+        )
+        search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # Gán sự kiện <KeyRelease> để tìm kiếm live
+        search_entry.bind("<KeyRelease>", lambda e: search_command(search_entry.get()))
+        return search_entry
     
     def show_dashboard(self):
         """Hiển thị trang chủ (Chỉ UI)"""
@@ -187,36 +266,149 @@ class Admin:
             tk.Label(card, text=str(value), font=("Arial", 24, "bold"), bg=colors[i % len(colors)], fg="white").pack()
     
     def manage_employees(self):
-        """Hiển thị UI Quản lý nhân viên"""
+        """Hiển thị UI Quản lý nhân viên (ĐÃ NÂNG CẤP VỚI PANEL CHI TIẾT)"""
         self.clear_content()
-        tk.Label(self.content_frame, text="QUẢN LÝ NHÂN VIÊN", font=("Arial", 18, "bold"), bg=self.bg_color, fg="#003366").pack(pady=10)
         
+        # --- SỬA LỖI: Dùng tk.Label (thay vì ttk.Label) để nhận 'bg' và 'fg' ---
+        tk.Label(
+            self.content_frame,
+            text="QUẢN LÝ THÔNG TIN NHÂN VIÊN",
+            font=("Arial", 18, "bold"), 
+            bg=self.bg_color, 
+            fg="#003366"
+        ).pack(pady=(0, 10))
+        
+        # --- 1. KHUNG NÚT BẤM CHỨC NĂNG (Thêm, Xóa) ---
         btn_frame = tk.Frame(self.content_frame, bg=self.bg_color)
-        btn_frame.pack(pady=10)
+        btn_frame.pack(pady=5, fill=tk.X, padx=20) # Thêm padx
         
-        # Sửa lỗi 'ValueError: not enough values to unpack'
-        buttons = [
-            ("➕ Thêm nhân viên", "#28a745", self.emp_logic.add_employee),
-            ("✏️ Sửa thông tin", "#ffc107", self.emp_logic.edit_employee),
-            ("🗑️ Xóa nhân viên", "#dc3545", self.emp_logic.delete_employee),
-            ("🔄 Làm mới", "#17a2b8", self.manage_employees) # Thêm màu cho nút này
-        ]
-        for text, bg, cmd in buttons:
-            tk.Button(btn_frame, text=text, font=("Arial", 11), bg=bg, fg="white", command=cmd).pack(side=tk.LEFT, padx=5)
+        tk.Button(
+            btn_frame, text="➕ Thêm nhân viên", font=("Arial", 11), bg="#28a745", fg="white", 
+            command=self.emp_logic.add_employee, cursor="hand2"
+        ).pack(side=tk.LEFT, padx=5, ipady=4)
         
-        table_frame = tk.Frame(self.content_frame, bg=self.bg_color)
-        table_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        tk.Button(
+            btn_frame, text="🗑️ Xóa nhân viên", font=("Arial", 11), bg="#dc3545", fg="white", 
+            command=self.emp_logic.delete_employee, cursor="hand2"
+        ).pack(side=tk.LEFT, padx=5, ipady=4)
         
-        columns = ("ID", "Tên đăng nhập", "Họ tên", "SĐT", "Email", "Vai trò", "Trạng thái")
-        self.employee_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=20)
-        for col in columns: self.employee_tree.heading(col, text=col)
+        # --- 2. THANH TÌM KIẾM (Live Search) ---
+        # Đặt thanh tìm kiếm trong content_frame, có padding
+        search_bar_container = tk.Frame(self.content_frame, bg=self.bg_color)
+        search_bar_container.pack(fill=tk.X, padx=20)
+        self.search_entry = self.create_search_bar(
+            search_bar_container, 
+            lambda keyword: self.emp_logic.load_view(self.employee_tree, keyword)
+        )
         
-        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.employee_tree.yview)
-        self.employee_tree.configure(yscrollcommand=scrollbar.set)
-        self.employee_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # --- 3. KHUNG BẢNG (Treeview) ---
+        table_frame = ttk.Frame(self.content_frame, style='Content.TFrame')
+        table_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 10), padx=20) 
+        
+        columns = ("ID", "Họ tên", "SĐT", "Email", "Vai trò", "Trạng thái")
+        self.employee_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=10)
+        
+        tree = self.employee_tree
+        tree.heading("ID", text="ID")
+        tree.column("ID", width=50, anchor="center")
+        tree.heading("Họ tên", text="Họ tên")
+        tree.column("Họ tên", width=200, anchor="w")
+        tree.heading("SĐT", text="SĐT")
+        tree.column("SĐT", width=120, anchor="center")
+        tree.heading("Email", text="Email")
+        tree.column("Email", width=200, anchor="w")
+        tree.heading("Vai trò", text="Vai trò")
+        tree.column("Vai trò", width=100, anchor="center")
+        tree.heading("Trạng thái", text="Trạng thái")
+        tree.column("Trạng thái", width=100, anchor="center")
+        
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        
+        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        self.emp_logic.load_employees()
+        tree.bind("<<TreeviewSelect>>", self.emp_logic.on_employee_select)
+
+        # --- 4. KHUNG CHI TIẾT (Panel) ---
+        details_frame = ttk.LabelFrame(self.content_frame, text="Chi tiết Nhân viên", style='Details.TLabelframe')
+        details_frame.pack(fill=tk.X, expand=False, pady=(10, 0), padx=20)
+
+        # 4.1. Cột Ảnh (Bên trái)
+        image_frame = ttk.Frame(details_frame, style='Card.TFrame', width=160, height=200)
+        image_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(10, 20), pady=10)
+        image_frame.pack_propagate(False) 
+
+        upload_button = ttk.Button(
+            image_frame, 
+            text="Tải ảnh lên", 
+            style='Func.TButton', 
+            command=self.emp_logic.upload_image, # Gọi logic
+            cursor="hand2"
+        )
+        upload_button.pack(side=tk.BOTTOM, pady=10)
+        
+        self.image_label = ttk.Label(image_frame, text="Chọn NV", anchor="center", background="lightgrey", relief="groove")
+        self.image_label.pack(fill=tk.BOTH, expand=True, side=tk.TOP, pady=5, padx=5)
+
+        # 4.2. Cột Thông tin (Bên phải)
+        info_frame = ttk.Frame(details_frame, style='Card.TFrame')
+        info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=10, padx=(0, 20))
+
+        self.details_emp_id = ttk.Label(info_frame, text="ID: (Chưa chọn)", style='Details.TLabel', font=("Segoe UI", 12))
+        self.details_emp_id.grid(row=0, column=0, columnspan=2, pady=10, sticky="w", padx=10)
+
+        # Cột 1 thông tin
+        ttk.Label(info_frame, text="Họ tên:", style='Details.TLabel').grid(row=1, column=0, sticky="e", padx=10, pady=5)
+        self.details_hoten = ttk.Entry(info_frame, font=("Segoe UI", 12), width=30)
+        self.details_hoten.grid(row=1, column=1, pady=5, sticky="ew")
+        
+        ttk.Label(info_frame, text="SĐT:", style='Details.TLabel').grid(row=2, column=0, sticky="e", padx=10, pady=5)
+        self.details_sdt = ttk.Entry(info_frame, font=("Segoe UI", 12), width=30)
+        self.details_sdt.grid(row=2, column=1, pady=5, sticky="ew")
+
+        ttk.Label(info_frame, text="Email:", style='Details.TLabel').grid(row=3, column=0, sticky="e", padx=10, pady=5)
+        self.details_email = ttk.Entry(info_frame, font=("Segoe UI", 12), width=30)
+        self.details_email.grid(row=3, column=1, pady=5, sticky="ew")
+
+        # Cột 2 thông tin
+        ttk.Label(info_frame, text="Vai trò:", style='Details.TLabel').grid(row=1, column=2, sticky="e", padx=10, pady=5)
+        self.details_vaitro = ttk.Combobox(info_frame, values=["Admin", "QuanLy", "NhanVien"], state="readonly", font=("Segoe UI", 12), width=20)
+        self.details_vaitro.grid(row=1, column=3, pady=5, padx=10, sticky="ew")
+        
+        ttk.Label(info_frame, text="Trạng thái:", style='Details.TLabel').grid(row=2, column=2, sticky="e", padx=10, pady=5)
+        self.details_trangthai = ttk.Combobox(info_frame, values=["HoatDong", "KhongHoatDong"], state="readonly", font=("Segoe UI", 12), width=20)
+        self.details_trangthai.grid(row=2, column=3, pady=5, padx=10, sticky="ew")
+
+        # Nút Cập nhật
+        self.update_button = tk.Button(
+            info_frame,
+            text="CẬP NHẬT",
+            font=("Arial", 10, "bold"),
+            bg="#007bff",
+            fg="white",
+            relief="flat",
+            padx=20,
+            pady=10,
+            command=self.emp_logic.update_employee, # Gọi logic
+            state="disabled",
+            cursor=""
+        )
+        self.update_button.grid(row=3, column=3, pady=10, padx=10, sticky="se")
+
+        # Cấu hình grid co dãn
+        info_frame.grid_columnconfigure(1, weight=1)
+        info_frame.grid_columnconfigure(3, weight=1)
+
+        # Gán sự kiện thay đổi
+        self.details_hoten.bind("<KeyRelease>", self.emp_logic.check_for_changes)
+        self.details_sdt.bind("<KeyRelease>", self.emp_logic.check_for_changes)
+        self.details_email.bind("<KeyRelease>", self.emp_logic.check_for_changes)
+        self.details_vaitro.bind("<<ComboboxSelected>>", self.emp_logic.check_for_changes)
+        self.details_trangthai.bind("<<ComboboxSelected>>", self.emp_logic.check_for_changes)
+        
+        # Tải dữ liệu lần đầu
+        self.emp_logic.load_view(self.employee_tree)
     
     def manage_products(self):
         """Hiển thị UI Quản lý sản phẩm"""
