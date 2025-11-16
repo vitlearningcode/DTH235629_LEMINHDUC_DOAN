@@ -1,6 +1,6 @@
 # =================================================================
 # FILE: nhanvien_window.py
-# MÔ TẢ: Class NhanVien - Giao diện nhân viên (CHỈ CÓ UI, ĐÃ DỌN DẸP)
+# MÔ TẢ: Class NhanVien - Giao diện nhân viên (ĐÃ CẬP NHẬT)
 # =================================================================
 
 import tkinter as tk
@@ -101,7 +101,8 @@ class NhanVien:
     def create_menu(self, parent):
         """Tạo menu (Chỉ UI)"""
         menu_items = [
-            ("🛒 Bán hàng", self.show_sales_screen),
+            # CẬP NHẬT: Thêm lambda để reset giỏ hàng khi bấm "Bán hàng"
+            ("🛒 Bán hàng", lambda: self.show_sales_screen(reset_cart=True)),
             ("🔧 Dịch vụ sửa chữa", self.show_service_screen),
             ("🏍️ Xem sản phẩm", self.view_products),
             ("💰 Quản lý Công nợ", self.show_debt_screen), # <-- THÊM DÒNG MỚI NÀY
@@ -138,13 +139,58 @@ class NhanVien:
             widget.destroy()
     
     # =================================================================
+    # HÀM MỚI: XỬ LÝ CLICK TỪ "XEM SẢN PHẨM"
+    # =================================================================
+    def add_product_from_view(self, product_data):
+        """
+        Được gọi từ NhanVienProductView khi click vào 1 thẻ sản phẩm.
+        Tự động chuyển màn hình, chọn sản phẩm và gọi logic add_to_cart.
+        """
+        product_id_to_add = product_data.get('id')
+        if not product_id_to_add:
+            messagebox.showwarning("Lỗi", "Không tìm thấy ID sản phẩm.")
+            return
+
+        # 1. Chuyển sang màn hình bán hàng (KHÔNG reset giỏ hàng)
+        self.show_sales_screen(reset_cart=False)
+
+        # 2. Tự động chọn đúng tab (Xe máy)
+        try:
+            self.tab_control.select(self.tab_products)
+        except Exception as e:
+            print(f"Không thể chọn tab sản phẩm: {e}") # Bỏ qua nếu lỗi
+
+        # 3. Tìm item trong Treeview (self.product_tree)
+        item_to_select = None
+        for item in self.product_tree.get_children():
+            values = self.product_tree.item(item, 'values')
+            if values and str(values[0]) == str(product_id_to_add):
+                item_to_select = item
+                break
+        
+        if item_to_select:
+            # 4. Giả lập việc user click (chọn) vào item đó
+            self.product_tree.selection_set(item_to_select)
+            self.product_tree.focus(item_to_select)
+            
+            # 5. Gọi logic thêm vào giỏ hàng
+            # (Nó sẽ tự đọc item vừa được chọn và hỏi số lượng)
+            self.sales_logic.add_to_cart()
+        else:
+            messagebox.showwarning("Lỗi", f"Không tìm thấy sản phẩm {product_id_to_add} trong danh sách bán hàng.")
+    
+    # =================================================================
     # CÁC HÀM VẼ GIAO DIỆN (UI-DRAWING METHODS)
     # =================================================================
 
-    def show_sales_screen(self):
+    # CẬP NHẬT: Thêm tham số reset_cart=True
+    def show_sales_screen(self, reset_cart=True):
         """Vẽ Màn hình bán hàng"""
         self.clear_content()
-        self.cart_items = [] # Reset giỏ hàng
+        
+        # CẬP NHẬT: Chỉ reset khi được yêu cầu
+        if reset_cart:
+            self.cart_items = [] # Reset giỏ hàng
         
         tk.Label(
             self.content_frame,
@@ -311,6 +357,16 @@ class NhanVien:
             command=self.sales_logic.process_payment,
             height=2
         ).pack(fill=tk.X, pady=10)
+        
+        # --- CẬP NHẬT: Tải lại giỏ hàng (nếu không reset) ---
+        if not reset_cart:
+            # Giả sử logic của bạn có hàm để vẽ lại giỏ hàng và tổng tiền
+            # Nếu không, bạn cần thêm 2 hàm này vào sales_logic:
+            try:
+                self.sales_logic.update_cart_treeview()
+                self.sales_logic.update_total_price()
+            except Exception as e:
+                print(f"Lỗi khi tải lại giỏ hàng: {e}. (Cần hàm update_cart_treeview và update_total_price trong sales_logic)")
     
     # Mở file: main/UI/nhanvien_window.py
 # THAY THẾ toàn bộ hàm show_service_screen CŨ bằng hàm MỚI này:

@@ -23,6 +23,22 @@ class NhanVienProductView:
             except Exception as e:
                 print(f"Không thể tạo thư mục resource: {e}")
 
+    # =================================================================
+    # HÀM MỚI: Xử lý khi click vào thẻ
+    # =================================================================
+    def _on_product_click(self, product_data):
+        """
+        Khi một thẻ sản phẩm được click, gọi hàm trên parent (NhanVienWindow)
+        để xử lý việc chuyển tab và thêm vào giỏ hàng.
+        """
+        try:
+            # Gọi hàm 'add_product_from_view' mà chúng ta đã thêm
+            # vào NhanVienWindow (self.parent)
+            self.parent.add_product_from_view(product_data)
+        except Exception as e:
+            print(f"Lỗi khi gọi hàm parent: {e}")
+            messagebox.showerror("Lỗi", f"Không thể xử lý click: {e}")
+
     def show(self):
         """Vẽ UI sản phẩm (gọi từ nhanvien_window.view_products)"""
         self.parent.clear_content()
@@ -87,6 +103,7 @@ class NhanVienProductView:
                 card = tk.Frame(inner_frame, width=180, height=220, bg="white", bd=1, relief=tk.RIDGE)
                 card.grid(row=row, column=col, padx=padx, pady=pady, sticky="n")
                 card.grid_propagate(False) # Ngăn card co lại
+                card.configure(cursor="hand2") # Thêm con trỏ tay
 
                 img_frame = tk.Frame(card, width=150, height=150, bg="white")
                 img_frame.pack(pady=(8,4))
@@ -94,6 +111,7 @@ class NhanVienProductView:
 
                 img_label = tk.Label(img_frame, bg="white")
                 img_label.pack(expand=True)
+                img_label.configure(cursor="hand2")
 
                 img_obj = None
                 img_path = p.get("image_path") # Lấy đường dẫn đã được xây dựng
@@ -120,15 +138,30 @@ class NhanVienProductView:
                     ph.create_rectangle(2, 2, 148, 148, outline="#cccccc")
                     ph.create_text(75, 75, text="No Image", fill="#666666")
                     ph.pack(fill=tk.BOTH, expand=True)
+                    ph.configure(cursor="hand2")
+                    # Bind cả placeholder
+                    ph.bind("<Button-1>", lambda e, p_data=p: self._on_product_click(p_data))
+
 
                 # Hiển thị Tên
-                name = p.get("name", "Tên sản phẩm")
-                tk.Label(card, text=name, bg="white", wraplength=170, justify="center", font=("Arial", 10, "bold")).pack(pady=(4,0))
+                name_label = tk.Label(card, text=p.get("name", "Tên sản phẩm"), bg="white", wraplength=170, justify="center", font=("Arial", 10, "bold"))
+                name_label.pack(pady=(4,0))
+                name_label.configure(cursor="hand2")
 
                 # Hiển thị Giá (Đã được format từ _load_products)
-                price = p.get("price", "0")
-                price_text = f"{price} VNĐ"
-                tk.Label(card, text=price_text, bg="white", fg="red", font=("Arial", 10, "bold")).pack(pady=(2,6))
+                price_label = tk.Label(card, text=f"{p.get('price', '0')} VNĐ", bg="white", fg="red", font=("Arial", 10, "bold"))
+                price_label.pack(pady=(2,6))
+                price_label.configure(cursor="hand2")
+
+                # ==========================================================
+                # CẬP NHẬT: Bind sự kiện click cho card và các label
+                # Sử dụng lambda p_data=p để "bắt" đúng dữ liệu
+                # của sản phẩm 'p' tại thời điểm tạo vòng lặp
+                # ==========================================================
+                card.bind("<Button-1>", lambda e, p_data=p: self._on_product_click(p_data))
+                img_label.bind("<Button-1>", lambda e, p_data=p: self._on_product_click(p_data))
+                name_label.bind("<Button-1>", lambda e, p_data=p: self._on_product_click(p_data))
+                price_label.bind("<Button-1>", lambda e, p_data=p: self._on_product_click(p_data))
 
             for c in range(cols):
                 inner_frame.grid_columnconfigure(c, weight=1, minsize=180)
@@ -143,44 +176,38 @@ class NhanVienProductView:
         try:
             # Truy cập CSDL thông qua self.parent (NhanVien)
             if hasattr(self.parent, "db"):
-                      
+                
                 query = """
                     SELECT MaSanPham, TenSanPham, GiaBan, SoLuongTon
                     FROM SanPham
                     ORDER BY TenSanPham
                 """
-                               
-
+                
                 rows = self.parent.db.fetch_all(query)
                 
-             
-                    
                 if rows:
                     for r in rows:
-                        # Format giá bán ngay tại đây
-                        price_formatted = f"{r['GiaBan']:,.0f}" if r['GiaBan'] is not None else "0"
+                        price_raw = r['GiaBan'] or 0
+                        price_formatted = f"{price_raw:,.0f}"
                         product_id = r['MaSanPham']
                         
-                        # TỰ XÂY DỰNG ĐƯỜNG DẪN ẢNH (GIỐNG FILE QUANLY)
                         image_path = os.path.join(self.resource_path, f"{product_id}.png")
                         
-                        # Nếu ảnh SP không tồn tại, dùng ảnh default
                         if not os.path.exists(image_path):
                             image_path = os.path.join(self.resource_path, "default_product.png")
 
                         products.append({
                             "id": product_id,
                             "name": r['TenSanPham'],
-                            "price": price_formatted, # Giá đã format
+                            "price": price_formatted, # Giá đã format (để hiển thị)
+                            "price_raw": price_raw,   # Giá gốc (để tính toán)
                             "image_path": image_path, # Đường dẫn ảnh (ĐÃ SỬA)
                             "stock": r['SoLuongTon']
                         })
                     return products
             
-            # Nếu không tìm thấy self.parent.db
             return []
 
         except Exception as e:
-            # Lỗi này có thể xảy ra nếu CSDL vẫn sai tên cột
             print(f"--- [DEBUG] LỖI NẶNG TRONG _load_products: {e}")
-            return [] # Trả về list rỗng nếu có lỗi
+            return []
