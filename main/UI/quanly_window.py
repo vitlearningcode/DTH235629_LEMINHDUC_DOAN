@@ -402,43 +402,99 @@ class QuanLy:
 
     
     def view_products(self):
-        """Xem sản phẩm"""
         self.clear_content()
         ttk.Label(
             self.content_frame,
-            text="DANH SÁCH SẢN PHẨM (CHỈ XEM)",
+            text="QUẢN LÝ THÔNG TIN SẢN PHẨM",
             style='Content.TLabel'
         ).pack(pady=(0, 10))
+        self.search_entry = self.create_search_bar(
+            self.content_frame,
+            lambda keyword: self.view_product.load_view(self.product_tree, keyword)
+        )
 
-        self.search_entry = self.create_search_bar(self.content_frame, lambda keyword: self.view_product.load_view(self.product_tree, keyword))
-
+        # --- BẢNG SẢN PHẨM ---
         table_frame = ttk.Frame(self.content_frame, style='Content.TFrame')
-        table_frame.pack(fill=tk.BOTH, expand=True)
-
+        table_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 10))
         columns = ("Mã SP", "Tên SP", "Hãng", "Loại", "Giá bán", "Tồn kho")
-        self.product_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=25)
-        
-        tree = self.product_tree
-        tree.heading("Mã SP", text="Mã SP")
-        tree.column("Mã SP", width=50, anchor="center")
-        tree.heading("Tên SP", text="Tên SP")
-        tree.column("Tên SP", width=300, anchor="w")
-        tree.heading("Hãng", text="Hãng")
-        tree.column("Hãng", width=100, anchor="center")
-        tree.heading("Loại", text="Loại")
-        tree.column("Loại", width=100, anchor="center")
-        tree.heading("Giá bán", text="Giá bán")
-        tree.column("Giá bán", width=120, anchor="e")
-        tree.heading("Tồn kho", text="Tồn kho")
-        tree.column("Tồn kho", width=80, anchor="center")
-
-        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
-        tree.configure(yscrollcommand=scrollbar.set)
-        
-        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.product_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=10)
+        for col in columns:
+            self.product_tree.heading(col, text=col)
+            self.product_tree.column(col, width=120, anchor="center")
+        self.product_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.product_tree.yview)
+        self.product_tree.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.product_tree.bind("<ButtonRelease-1>", self.view_product.on_product_select)
+        self.view_product.load_view(self.product_tree)
 
-        self.view_product.load_view(tree)
+        # --- PANEL CHI TIẾT SẢN PHẨM ---
+        details_frame = ttk.LabelFrame(self.content_frame, text="Chi tiết Sản phẩm", style='Details.TLabelframe')
+        details_frame.pack(fill=tk.X, expand=False, pady=(10, 0))
+
+        # Cột trái: ảnh sản phẩm + nút tải ảnh
+        image_frame = ttk.Frame(details_frame, style='Card.TFrame', width=160, height=200)
+        image_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(10, 20), pady=10)
+        image_frame.pack_propagate(False)
+        upload_button = ttk.Button(
+            image_frame, text="Tải ảnh lên", style='Func.TButton',
+            command=self.view_product.upload_image, cursor="hand2"
+        )
+        upload_button.pack(side=tk.BOTTOM, pady=10)
+        self.product_image_label = ttk.Label(
+            image_frame, text="Chọn SP", anchor="center", background="lightgrey", relief="groove")
+        self.product_image_label.pack(fill=tk.BOTH, expand=True, side=tk.TOP, pady=5, padx=5)
+
+        # Cột phải: các trường thông tin sản phẩm
+        info_frame = ttk.Frame(details_frame, style='Card.TFrame')
+        info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=10, padx=(0, 20))
+
+        # Mã sản phẩm (chỉ hiển thị)
+        self.details_product_id = ttk.Label(info_frame, text="Mã: (Chưa chọn)", style='Details.TLabel', font=self.font_label)
+        self.details_product_id.grid(row=0, column=0, pady=10, sticky="w", padx=10)
+
+        # Tên sản phẩm
+        ttk.Label(info_frame, text="Tên SP:", style='Details.TLabel').grid(row=1, column=0, sticky="e", padx=10, pady=5)
+        self.details_name = ttk.Entry(info_frame, font=self.font_label, width=30)
+        self.details_name.grid(row=1, column=1, pady=5, sticky="ew")
+
+        # Giá bán
+        ttk.Label(info_frame, text="Giá bán:", style='Details.TLabel').grid(row=2, column=0, sticky="e", padx=10, pady=5)
+        self.details_price = ttk.Entry(info_frame, font=self.font_label, width=30)
+        self.details_price.grid(row=2, column=1, pady=5, sticky="ew")
+
+        # Tồn kho
+        ttk.Label(info_frame, text="Tồn kho:", style='Details.TLabel').grid(row=3, column=0, sticky="e", padx=10, pady=5)
+        self.details_stock = ttk.Entry(info_frame, font=self.font_label, width=30)
+        self.details_stock.grid(row=3, column=1, pady=5, sticky="ew")
+
+        # Hãng xe
+        ttk.Label(info_frame, text="Hãng:", style='Details.TLabel').grid(row=1, column=2, sticky="e", padx=10, pady=5)
+        self.details_hang = ttk.Combobox(info_frame, values=["Honda", "Yamaha", "Suzuki", "..."], state="readonly", font=self.font_label, width=20)
+        self.details_hang.grid(row=1, column=3, pady=5, padx=10, sticky="ew")
+
+        # Loại xe
+        ttk.Label(info_frame, text="Loại:", style='Details.TLabel').grid(row=2, column=2, sticky="e", padx=10, pady=5)
+        self.details_loai = ttk.Combobox(info_frame, values=["Xe Tay Ga", "Xe Số", "Xe Côn Tay"], state="readonly", font=self.font_label, width=20)
+        self.details_loai.grid(row=2, column=3, pady=5, padx=10, sticky="ew")
+
+        # Nút cập nhật
+        self.update_button = tk.Button(
+            info_frame, text="CẬP NHẬT", font=self.font_button, bg="#007bff", fg="white",
+            relief="flat", padx=20, pady=10, command=self.view_product.update_product, state="disabled", cursor=""
+        )
+        self.update_button.grid(row=3, column=3, pady=10, padx=10, sticky="e")  # hoặc sticky="w"
+
+        info_frame.grid_columnconfigure(1, weight=1)
+        info_frame.grid_columnconfigure(3, weight=1)
+
+        # Bind sự kiện cho các trường để kiểm tra thay đổi
+        self.details_name.bind("<KeyRelease>", self.view_product.check_for_changes)
+        self.details_price.bind("<KeyRelease>", self.view_product.check_for_changes)
+        self.details_stock.bind("<KeyRelease>", self.view_product.check_for_changes)
+        self.details_hang.bind("<<ComboboxSelected>>", self.view_product.check_for_changes)
+        self.details_loai.bind("<<ComboboxSelected>>", self.view_product.check_for_changes)
+
     
     def view_parts(self):
         """Xem phụ tùng"""
