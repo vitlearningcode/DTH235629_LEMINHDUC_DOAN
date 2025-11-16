@@ -15,7 +15,7 @@ class QuanLyCustomerViewLogic:
         params = []
         
         if keyword:
-            query += " WHERE HoTen LIKE ? OR SoDienThoai LIKE ?"
+            query += " WHERE HoTen LIKE %s OR SoDienThoai LIKE %s" # <-- SỬA LỖI
             params.extend([f"%{keyword}%", f"%{keyword}%"])
             
         query += " ORDER BY MaKhachHang DESC"
