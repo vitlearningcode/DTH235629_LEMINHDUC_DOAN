@@ -148,7 +148,7 @@ class NhanVienSalesLogic:
         self.view.total_label.config(text=f"{total:,.0f} VNĐ")
     
     def process_payment(self):
-        """Xử lý thanh toán"""
+        """Xử lý thanh toán (Đã cập nhật cho phép Công Nợ)"""
         if not self.view.cart_items:
             messagebox.showwarning("Cảnh báo", "Giỏ hàng trống!")
             return
@@ -157,24 +157,57 @@ class NhanVienSalesLogic:
             messagebox.showwarning("Cảnh báo", "Vui lòng chọn khách hàng!")
             return
         
+        # Lấy tổng tiền từ giỏ hàng
         total = sum(item['total'] for item in self.view.cart_items)
         
+        # Lấy số tiền khách trả từ Entry
+        try:
+            paid_str = self.view.payment_entry.get().strip()
+            if not paid_str:
+                messagebox.showwarning("Cảnh báo", "Vui lòng nhập số tiền khách trả!")
+                return
+            
+            tien_da_tra = float(paid_str)
+            if tien_da_tra < 0:
+                raise ValueError("Số tiền không được âm")
+                
+        except ValueError:
+            messagebox.showerror("Lỗi", "Số tiền khách trả không hợp lệ! Vui lòng chỉ nhập số.")
+            return
+
+       # Tự động quyết định trạng thái dựa trên số tiền
+        trang_thai = 'DaThanhToan' # Mặc định là đã thanh toán
+        
+        if tien_da_tra < total:
+            # Nếu tiền trả < tổng tiền, ĐỔI trạng thái thành 'ConNo'
+            trang_thai = 'ConNo' 
+            
+            # Hiển thị xác nhận công nợ
+            if not messagebox.askyesno("Xác nhận Công Nợ", 
+                                       f"Tổng tiền: {total:,.0f} VNĐ\n"
+                                       f"Khách trả: {tien_da_tra:,.0f} VNĐ\n"
+                                       f"Còn nợ: {(total - tien_da_tra):,.0f} VNĐ\n\n"
+                                       f"Hóa đơn này sẽ được ghi nhận là 'Còn Nợ'. Bạn có chắc chắn?"):
+                return # Hủy nếu Nhân viên không xác nhận
+
+        # Sửa: Thêm cột TrangThai vào câu query
         query_hd = """
             INSERT INTO HoaDon (MaKhachHang, MaNguoiDung, TongTien, TongThanhToan, TienDaTra, PhuongThucThanhToan, TrangThai)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
         try:
+            # Sửa: Truyền biến 'trang_thai' vào tham số
             invoice_id = self.db.execute_query(
                 query_hd,
                 (self.view.current_customer['MaKhachHang'], self.view.user_info['MaNguoiDung'], 
-                 total, total, total, 'TienMat', 'DaThanhToan')
+                 total, total, tien_da_tra, 'TienMat', trang_thai) # Thêm 'trang_thai' ở cuối
             )
             
             if not invoice_id:
                 messagebox.showerror("Lỗi", "Không thể tạo hóa đơn! (ID trả về null)")
                 return
 
-            # Thêm chi tiết hóa đơn
+            # Thêm chi tiết hóa đơn (giữ nguyên)
             for item in self.view.cart_items:
                 if item['type'] == 'SanPham':
                     detail_query = "INSERT INTO ChiTietHoaDonSanPham (MaHoaDon, MaSanPham, SoLuong, DonGia) VALUES (%s, %s, %s, %s)"
@@ -191,6 +224,7 @@ class NhanVienSalesLogic:
             self.update_cart_display()
             self.view.customer_name_var.set("")
             self.view.phone_entry.delete(0, tk.END)
+            self.view.payment_entry.delete(0, tk.END) # Xóa ô nhập tiền
             delattr(self.view, 'current_customer')
             
             # Tải lại danh sách vì tồn kho đã thay đổi
