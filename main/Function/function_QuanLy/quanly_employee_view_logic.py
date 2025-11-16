@@ -11,7 +11,7 @@ class QuanLyEmployeeViewLogic:
     def __init__(self, view):
         self.view = view
         self.db = view.db
-        self.resource_path = os.path.join(os.path.dirname(__file__), "..", "..", "resource")
+        self.resource_path = os.path.join(os.path.dirname(__file__), "..", "..", "resource","NhanVien")
         if not os.path.exists(self.resource_path):
             os.makedirs(self.resource_path)
         self.original_data = {}
