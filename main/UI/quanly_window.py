@@ -497,41 +497,92 @@ class QuanLy:
 
     
     def view_parts(self):
-        """Xem phụ tùng"""
         self.clear_content()
         ttk.Label(
             self.content_frame,
-            text="DANH SÁCH PHỤ TÙNG (CHỈ XEM)",
+            text="QUẢN LÝ THÔNG TIN PHỤ TÙNG",
             style='Content.TLabel'
         ).pack(pady=(0, 10))
+        self.search_entry = self.create_search_bar(
+            self.content_frame,
+            lambda keyword: self.view_part.load_view(self.part_tree, keyword)
+        )
 
-        self.search_entry = self.create_search_bar(self.content_frame, lambda keyword: self.view_part.load_view(self.part_tree, keyword))
-
+        # BẢNG PHỤ TÙNG
         table_frame = ttk.Frame(self.content_frame, style='Content.TFrame')
-        table_frame.pack(fill=tk.BOTH, expand=True)
-
-        columns = ("Mã PT", "Tên Phụ Tùng", "Loại", "Giá bán", "Tồn kho")
-        self.part_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=25)
-        
-        tree = self.part_tree
-        tree.heading("Mã PT", text="Mã PT")
-        tree.column("Mã PT", width=50, anchor="center")
-        tree.heading("Tên Phụ Tùng", text="Tên Phụ Tùng")
-        tree.column("Tên Phụ Tùng", width=300, anchor="w")
-        tree.heading("Loại", text="Loại")
-        tree.column("Loại", width=150, anchor="center")
-        tree.heading("Giá bán", text="Giá bán")
-        tree.column("Giá bán", width=120, anchor="e")
-        tree.heading("Tồn kho", text="Tồn kho")
-        tree.column("Tồn kho", width=80, anchor="center")
-
-        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
-        tree.configure(yscrollcommand=scrollbar.set)
-        
-        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        table_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 10))
+        columns = ("Mã PT", "Tên PT", "Loại", "Giá bán", "Tồn kho")
+        self.part_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=10)
+        for col in columns:
+            self.part_tree.heading(col, text=col)
+            self.part_tree.column(col, width=120, anchor="center")
+        self.part_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.part_tree.yview)
+        self.part_tree.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.part_tree.bind("<ButtonRelease-1>", self.view_part.on_part_select)
+        self.view_part.load_view(self.part_tree)
 
-        self.view_part.load_view(tree)
+        # PANEL CHI TIẾT PHỤ TÙNG
+        details_frame = ttk.LabelFrame(self.content_frame, text="Chi tiết Phụ tùng", style='Details.TLabelframe')
+        details_frame.pack(fill=tk.X, expand=False, pady=(10, 0))
+
+        # Ảnh + nút upload
+        image_frame = ttk.Frame(details_frame, style='Card.TFrame', width=160, height=200)
+        image_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(10, 20), pady=10)
+        image_frame.pack_propagate(False)
+        upload_button = ttk.Button(
+            image_frame, text="Tải ảnh lên", style='Func.TButton',
+            command=self.view_part.upload_image, cursor="hand2"
+        )
+        upload_button.pack(side=tk.BOTTOM, pady=10)
+        self.part_image_label = ttk.Label(
+            image_frame, text="Chọn PT", anchor="center", background="lightgrey", relief="groove")
+        self.part_image_label.pack(fill=tk.BOTH, expand=True, side=tk.TOP, pady=5, padx=5)
+
+        info_frame = ttk.Frame(details_frame, style='Card.TFrame')
+        info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=10, padx=(0, 20))
+
+        self.details_part_id = ttk.Label(info_frame, text="Mã: (Chưa chọn)", style='Details.TLabel', font=self.font_label)
+        self.details_part_id.grid(row=0, column=0, pady=10, sticky="w", padx=10)
+
+        # Tên PT
+        ttk.Label(info_frame, text="Tên PT:", style='Details.TLabel').grid(row=1, column=0, sticky="e", padx=10, pady=5)
+        self.details_name = ttk.Entry(info_frame, font=self.font_label, width=30)
+        self.details_name.grid(row=1, column=1, pady=5, sticky="ew")
+
+        # Giá bán
+        ttk.Label(info_frame, text="Giá bán:", style='Details.TLabel').grid(row=2, column=0, sticky="e", padx=10, pady=5)
+        self.details_price = ttk.Entry(info_frame, font=self.font_label, width=30)
+        self.details_price.grid(row=2, column=1, pady=5, sticky="ew")
+
+        # Tồn kho
+        ttk.Label(info_frame, text="Tồn kho:", style='Details.TLabel').grid(row=3, column=0, sticky="e", padx=10, pady=5)
+        self.details_stock = ttk.Entry(info_frame, font=self.font_label, width=30)
+        self.details_stock.grid(row=3, column=1, pady=5, sticky="ew")
+
+        # Loại phụ tùng (mapping chuẩn)
+        ttk.Label(info_frame, text="Loại:", style='Details.TLabel').grid(row=1, column=2, sticky="e", padx=10, pady=5)
+        self.details_loai = ttk.Combobox(
+            info_frame, values=list(self.view_part.loaipt_dict.keys()), state="readonly", font=self.font_label, width=20)
+        self.details_loai.grid(row=1, column=3, pady=5, padx=10, sticky="ew")
+
+        # NÚT CẬP NHẬT
+        self.update_button = tk.Button(
+            info_frame, text="CẬP NHẬT", font=self.font_button, bg="#007bff", fg="white",
+            relief="flat", padx=20, pady=10, command=self.view_part.update_part, state="disabled", cursor=""
+        )
+        self.update_button.grid(row=3, column=3, pady=10, padx=10, sticky="e")  # hoặc sticky="w"
+
+        info_frame.grid_columnconfigure(1, weight=1)
+        info_frame.grid_columnconfigure(3, weight=1)
+
+        # Bind các trường để kiểm tra thay đổi
+        self.details_name.bind("<KeyRelease>", self.view_part.check_for_changes)
+        self.details_price.bind("<KeyRelease>", self.view_part.check_for_changes)
+        self.details_stock.bind("<KeyRelease>", self.view_part.check_for_changes)
+        self.details_loai.bind("<<ComboboxSelected>>", self.view_part.check_for_changes)
+
     
     def view_warehouse(self):
         """Xem kho (Phiếu nhập kho)"""
