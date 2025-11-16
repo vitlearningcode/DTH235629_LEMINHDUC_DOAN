@@ -101,7 +101,6 @@ class NhanVien:
             ("🛒 Bán hàng", self.show_sales_screen),
             ("🔧 Dịch vụ sửa chữa", self.show_service_screen),
             ("🏍️ Xem sản phẩm", self.view_products),
-            ("👤 Tìm khách hàng", self.search_customer),
             ("📄 Lịch sử hóa đơn", self.view_invoice_history) # Trỏ đến hàm vẽ UI
         ]
         
@@ -390,15 +389,6 @@ class NhanVien:
             bg=self.bg_color
         ).pack(pady=20)
     
-    def search_customer(self):
-        """Vẽ Màn hình tìm kiếm khách hàng"""
-        self.clear_content()
-        tk.Label(
-            self.content_frame,
-            text="TÌM KIẾM KHÁCH HÀNG",
-            font=("Arial", 18, "bold"),
-            bg=self.bg_color
-        ).pack(pady=20)
     
     def view_invoice_history(self):
         """Vẽ Màn hình lịch sử hóa đơn"""

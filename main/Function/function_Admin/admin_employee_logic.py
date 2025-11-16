@@ -21,11 +21,23 @@ class AdminEmployeeLogic:
                 emp['MaNguoiDung'], emp['TenDangNhap'], emp['HoTen'], emp['SoDienThoai'] or "", emp['Email'] or "", emp['VaiTro'], emp['TrangThai']
             ))
     
+    def _validate_phone(self, new_text):
+        """Chỉ cho phép nhập số và giới hạn 11 ký tự"""
+        if new_text == "":
+            return True  # Cho phép xóa (chuỗi rỗng)
+        if not new_text.isdigit():
+            return False # Từ chối nếu không phải là số
+        if len(new_text) > 11:
+            return False # Từ chối nếu dài hơn 11 số
+        return True
+
     def add_employee(self):
         """Mở cửa sổ Toplevel để thêm nhân viên mới"""
         dialog = tk.Toplevel(self.view.window) # Dùng self.view.window làm cha
         dialog.title("Thêm nhân viên")
         dialog.geometry("500x500")
+
+        vcmd = (dialog.register(self._validate_phone), '%P')
         
         fields = [("Tên đăng nhập:", "username"), ("Mật khẩu:", "password"), ("Họ tên:", "fullname"), 
                   ("Số điện thoại:", "phone"), ("Email:", "email"), ("Địa chỉ:", "address")]
@@ -34,6 +46,8 @@ class AdminEmployeeLogic:
             tk.Label(dialog, text=label, font=("Arial", 11)).grid(row=i, column=0, padx=20, pady=10, sticky="w")
             entry = tk.Entry(dialog, font=("Arial", 11), width=30)
             if key == "password": entry.config(show="*")
+            if key == "phone":
+                entry.config(validate='key', validatecommand=vcmd)
             entry.grid(row=i, column=1, padx=20, pady=10)
             entries[key] = entry
             
@@ -84,7 +98,7 @@ class AdminEmployeeLogic:
         dialog.title(f"Sửa thông tin nhân viên (ID: {emp_id})")
         dialog.geometry("500x550") # Cao hơn một chút để chứa trường "Trạng thái"
         dialog.grab_set() # Giữ focus
-        
+        vcmd = (dialog.register(self._validate_phone), '%P')
         entries = {}
         
         # Tên đăng nhập (Chỉ đọc, không cho sửa)
@@ -109,6 +123,8 @@ class AdminEmployeeLogic:
         for i, (label_text, key, db_key) in enumerate(fields, start=2):
             tk.Label(dialog, text=label_text, font=("Arial", 11)).grid(row=i, column=0, padx=20, pady=10, sticky="w")
             entry = tk.Entry(dialog, font=("Arial", 11), width=30)
+            if key == "phone":
+                entry.config(validate='key', validatecommand=vcmd)
             entry.grid(row=i, column=1, padx=20, pady=10)
             # Dùng .get(db_key) or "" để tránh lỗi nếu giá trị là None
             entry.insert(0, employee_data.get(db_key) or "") 
