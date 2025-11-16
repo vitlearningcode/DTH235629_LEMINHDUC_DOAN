@@ -13,7 +13,7 @@ class AdminEmployeeLogic:
         self.db = view.db
         
         # Đường dẫn đến thư mục chứa ảnh avatar
-        self.resource_path = os.path.join(os.path.dirname(__file__), "..", "..", "resource")
+        self.resource_path = os.path.join(os.path.dirname(__file__), "..", "..", "resource","NhanVien")
         if not os.path.exists(self.resource_path):
             os.makedirs(self.resource_path)
             
