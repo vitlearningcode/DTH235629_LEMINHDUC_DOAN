@@ -199,3 +199,48 @@ class NhanVienSalesLogic:
         
         except Exception as e:
             messagebox.showerror("Lỗi", f"Không thể tạo hóa đơn! \n(Lỗi trigger hoặc CSDL)\n{e}")
+    # (Bạn hãy dán 2 hàm này vào bên trong class NhanVienSalesLogic)
+
+    def update_cart_treeview(self):
+        """
+        (HÀM MỚI)
+        Vẽ lại toàn bộ giỏ hàng (Treeview) từ dữ liệu self.view.cart_items.
+        """
+        # 1. Xóa tất cả item cũ
+        for item in self.view.cart_tree.get_children():
+            self.view.cart_tree.delete(item)
+        
+        # 2. Thêm item mới từ danh sách cart_items
+        if not self.view.cart_items:
+            return
+            
+        for item in self.view.cart_items:
+            try:
+                name = item['name']
+                quantity = item['quantity']
+                price = item['price']
+                total = quantity * price
+                
+                self.view.cart_tree.insert("", tk.END, values=(
+                    name,
+                    quantity,
+                    f"{price:,.0f}",
+                    f"{total:,.0f}"
+                ))
+            except Exception as e:
+                print(f"Lỗi khi thêm item vào cart_tree: {e}")
+
+    def update_total_price(self):
+        """
+        (HÀM MỚI)
+        Tính toán và cập nhật lại nhãn tổng tiền từ self.view.cart_items.
+        """
+        total = 0
+        for item in self.view.cart_items:
+            try:
+                total += item['quantity'] * item['price']
+            except Exception as e:
+                print(f"Lỗi khi tính tổng tiền: {e}")
+                
+        # Cập nhật nhãn total_label trên giao diện
+        self.view.total_label.config(text=f"{total:,.0f} VNĐ")        
