@@ -18,7 +18,7 @@ class AdminInvoiceLogic:
             FROM HoaDon hd
             JOIN KhachHang kh ON hd.MaKhachHang = kh.MaKhachHang
             JOIN NguoiDung nd ON hd.MaNguoiDung = nd.MaNguoiDung
-            ORDER BY hd.MaHoaDon DESC
+            ORDER BY hd.MaHoaDon ASC
         """
         invoices = self.db.fetch_all(query)
         for inv in invoices:

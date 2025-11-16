@@ -26,7 +26,7 @@ class AdminCustomerLogic:
             query += " WHERE HoTen LIKE %s OR SoDienThoai LIKE %s"
             params.extend([f"%{keyword}%", f"%{keyword}%"])
             
-        query += " ORDER BY MaKhachHang DESC"
+        query += " ORDER BY MaKhachHang ASC"
         
         try:
             customers = self.db.fetch_all(query, params)

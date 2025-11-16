@@ -35,7 +35,7 @@ class AdminWarrantyLogic:
             query += " WHERE kh.HoTen LIKE %s OR kh.SoDienThoai LIKE %s OR sp.TenSanPham LIKE %s"
             params.extend([f"%{keyword}%", f"%{keyword}%", f"%{keyword}%"])
             
-        query += " ORDER BY pb.MaPhieuBaoHanh DESC"
+        query += " ORDER BY pb.MaPhieuBaoHanh ASC"
         
         try:
             records = self.db.fetch_all(query, params)
