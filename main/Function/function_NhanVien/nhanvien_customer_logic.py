@@ -8,6 +8,15 @@ class NhanVienCustomerLogic:
         self.view = view
         self.db = view.db
 
+    def _validate_phone(self, new_text):
+        """Chỉ cho phép nhập số và giới hạn 11 ký tự"""
+        if new_text == "":
+            return True  # Cho phép xóa (chuỗi rỗng)
+        if not new_text.isdigit():
+            return False # Từ chối nếu không phải là số
+        if len(new_text) > 11:
+            return False # Từ chối nếu dài hơn 11 số
+        return True
     def search_customer_by_phone(self):
         """Tìm khách hàng theo SĐT"""
         phone = self.view.phone_entry.get().strip()
@@ -34,6 +43,7 @@ class NhanVienCustomerLogic:
         dialog.geometry("450x400")
         dialog.resizable(False, False)
         
+        vcmd = (dialog.register(self._validate_phone), '%P')
         fields = [
             ("Họ tên:", "fullname"),
             ("Số điện thoại:", "phone"),
@@ -46,6 +56,8 @@ class NhanVienCustomerLogic:
         for i, (label, key) in enumerate(fields):
             tk.Label(dialog, text=label, font=("Arial", 11)).grid(row=i, column=0, padx=20, pady=10, sticky="w")
             entry = tk.Entry(dialog, font=("Arial", 11), width=30)
+            if key == "phone":
+                entry.config(validate='key', validatecommand=vcmd)
             entry.grid(row=i, column=1, padx=20, pady=10)
             entries[key] = entry
         
