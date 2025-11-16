@@ -16,7 +16,7 @@ from UI.nhanvien_window import NhanVien
 class Login:
     def __init__(self):
         """Khởi tạo cửa sổ đăng nhập"""
-        self.window = tk.Tk()
+ư        self.window = tk.Tk()
         self.window.title("ĐĂNG NHẬP HỆ THỐNG")
         self.window.geometry("500x400")
         self.window.resizable(False, False)
