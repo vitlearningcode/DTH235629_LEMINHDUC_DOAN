@@ -19,7 +19,7 @@ class QuanLyPartViewLogic:
         params = []
         
         if keyword:
-            query += " WHERE pt.TenPhuTung LIKE ?"
+            query += " WHERE pt.TenPhuTung LIKE %s" # <-- SỬA LỖI
             params.append(f"%{keyword}%")
             
         query += " ORDER BY pt.MaPhuTung"

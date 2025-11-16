@@ -26,7 +26,8 @@ class QuanLyWarehouseViewLogic:
         params = []
 
         if keyword:
-            query += " WHERE n.TenNhaCungCap LIKE ? OR CAST(p.MaPhieuNhap AS VARCHAR(20)) = ?"
+            # SỬA LỖI: Dùng %s
+            query += " WHERE n.TenNhaCungCap LIKE %s OR CAST(p.MaPhieuNhap AS VARCHAR(20)) = %s"
             params.extend([f"%{keyword}%", keyword])
 
         query += " ORDER BY p.MaPhieuNhap DESC"
@@ -61,7 +62,6 @@ class QuanLyWarehouseViewLogic:
         dialog.resizable(False, False)
         dialog.grab_set()
 
-        # --- 1. Hiển thị Sản phẩm (Xe máy) ---
         sp_frame = ttk.LabelFrame(dialog, text="Chi tiết Sản phẩm (Xe máy)", padding=(10, 10))
         sp_frame.pack(fill=tk.X, expand=True, padx=20, pady=10)
         
@@ -71,24 +71,22 @@ class QuanLyWarehouseViewLogic:
         sp_tree.column("Tên sản phẩm", width=300)
         sp_tree.pack(fill=tk.BOTH, expand=True)
 
+        # SỬA LỖI: Dùng %s
         query_sp = """
             SELECT sp.TenSanPham, ctpn.SoLuong, ctpn.DonGia
             FROM ChiTietPhieuNhapSanPham ctpn
             JOIN SanPham sp ON ctpn.MaSanPham = sp.MaSanPham
-            WHERE ctpn.MaPhieuNhap = ?
+            WHERE ctpn.MaPhieuNhap = %s
         """
         products = self.db.fetch_all(query_sp, (phieu_id,))
         if products:
             for p in products:
                 thanh_tien = p['SoLuong'] * p['DonGia']
                 sp_tree.insert("", tk.END, values=(
-                    p['TenSanPham'], 
-                    p['SoLuong'], 
-                    f"{p['DonGia']:,.0f}", 
-                    f"{thanh_tien:,.0f}"
+                    p['TenSanPham'], p['SoLuong'], 
+                    f"{p['DonGia']:,.0f}", f"{thanh_tien:,.0f}"
                 ))
 
-        # --- 2. Hiển thị Phụ tùng ---
         pt_frame = ttk.LabelFrame(dialog, text="Chi tiết Phụ tùng", padding=(10, 10))
         pt_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
         
@@ -98,24 +96,22 @@ class QuanLyWarehouseViewLogic:
         pt_tree.column("Tên phụ tùng", width=300)
         pt_tree.pack(fill=tk.BOTH, expand=True)
 
+        # SỬA LỖI: Dùng %s
         query_pt = """
             SELECT pt.TenPhuTung, ctpn.SoLuong, ctpn.DonGia
             FROM ChiTietPhieuNhapPhuTung ctpn
             JOIN PhuTung pt ON ctpn.MaPhuTung = pt.MaPhuTung
-            WHERE ctpn.MaPhieuNhap = ?
+            WHERE ctpn.MaPhieuNhap = %s
         """
         parts = self.db.fetch_all(query_pt, (phieu_id,))
         if parts:
             for p in parts:
                 thanh_tien = p['SoLuong'] * p['DonGia']
                 pt_tree.insert("", tk.END, values=(
-                    p['TenPhuTung'], 
-                    p['SoLuong'], 
-                    f"{p['DonGia']:,.0f}", 
-                    f"{thanh_tien:,.0f}"
+                    p['TenPhuTung'], p['SoLuong'], 
+                    f"{p['DonGia']:,.0f}", f"{thanh_tien:,.0f}"
                 ))
 
-        # --- 3. Nút Đóng ---
         tk.Button(
             dialog, 
             text="Đóng", 

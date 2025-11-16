@@ -23,7 +23,8 @@ class QuanLyInvoiceViewLogic:
         params = []
         
         if keyword:
-            query += " WHERE TenKhachHang LIKE ? OR SoDienThoai LIKE ? OR CAST(MaHoaDon AS VARCHAR(20)) = ?"
+            # SỬA LỖI: Dùng %s
+            query += " WHERE TenKhachHang LIKE %s OR SoDienThoai LIKE %s OR CAST(MaHoaDon AS VARCHAR(20)) = %s"
             params.extend([f"%{keyword}%", f"%{keyword}%", keyword])
             
         query += " ORDER BY MaHoaDon DESC"
@@ -41,7 +42,6 @@ class QuanLyInvoiceViewLogic:
     def show_invoice_details(self):
         """Hiển thị chi tiết một hóa đơn (Sản phẩm và Phụ tùng)"""
         try:
-            # Lấy Treeview từ self.view (sẽ được gán trong file UI)
             tree = self.view.invoice_tree
             selected = tree.selection()
             if not selected:
@@ -54,14 +54,12 @@ class QuanLyInvoiceViewLogic:
             messagebox.showerror("Lỗi", f"Không thể lấy thông tin hóa đơn: {e}")
             return
         
-        # Tạo cửa sổ pop-up
         dialog = tk.Toplevel(self.view.window)
         dialog.title(f"Chi tiết Hóa đơn #{invoice_id}")
         dialog.geometry("700x550")
         dialog.resizable(False, False)
-        dialog.grab_set() # Giữ focus
+        dialog.grab_set() 
 
-        # --- 1. Hiển thị Sản phẩm (Xe máy) ---
         sp_frame = ttk.LabelFrame(dialog, text="Chi tiết Sản phẩm (Xe máy)", padding=(10, 10))
         sp_frame.pack(fill=tk.X, expand=True, padx=20, pady=10)
         
@@ -71,24 +69,22 @@ class QuanLyInvoiceViewLogic:
         sp_tree.column("Tên sản phẩm", width=300)
         sp_tree.pack(fill=tk.BOTH, expand=True)
 
+        # SỬA LỖI: Dùng %s
         query_sp = """
             SELECT sp.TenSanPham, cthd.SoLuong, cthd.DonGia
             FROM ChiTietHoaDonSanPham cthd
             JOIN SanPham sp ON cthd.MaSanPham = sp.MaSanPham
-            WHERE cthd.MaHoaDon = ?
+            WHERE cthd.MaHoaDon = %s
         """
         products = self.db.fetch_all(query_sp, (invoice_id,))
         if products:
             for p in products:
                 thanh_tien = p['SoLuong'] * p['DonGia']
                 sp_tree.insert("", tk.END, values=(
-                    p['TenSanPham'], 
-                    p['SoLuong'], 
-                    f"{p['DonGia']:,.0f}", 
-                    f"{thanh_tien:,.0f}"
+                    p['TenSanPham'], p['SoLuong'], 
+                    f"{p['DonGia']:,.0f}", f"{thanh_tien:,.0f}"
                 ))
 
-        # --- 2. Hiển thị Phụ tùng ---
         pt_frame = ttk.LabelFrame(dialog, text="Chi tiết Phụ tùng & Dịch vụ", padding=(10, 10))
         pt_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
         
@@ -98,24 +94,22 @@ class QuanLyInvoiceViewLogic:
         pt_tree.column("Tên phụ tùng", width=300)
         pt_tree.pack(fill=tk.BOTH, expand=True)
 
+        # SỬA LỖI: Dùng %s
         query_pt = """
             SELECT pt.TenPhuTung, cthd.SoLuong, cthd.DonGia
             FROM ChiTietHoaDonPhuTung cthd
             JOIN PhuTung pt ON cthd.MaPhuTung = pt.MaPhuTung
-            WHERE cthd.MaHoaDon = ?
+            WHERE cthd.MaHoaDon = %s
         """
         parts = self.db.fetch_all(query_pt, (invoice_id,))
         if parts:
             for p in parts:
                 thanh_tien = p['SoLuong'] * p['DonGia']
                 pt_tree.insert("", tk.END, values=(
-                    p['TenPhuTung'], 
-                    p['SoLuong'], 
-                    f"{p['DonGia']:,.0f}", 
-                    f"{thanh_tien:,.0f}"
+                    p['TenPhuTung'], p['SoLuong'], 
+                    f"{p['DonGia']:,.0f}", f"{thanh_tien:,.0f}"
                 ))
 
-        # --- 3. Nút Đóng ---
         tk.Button(
             dialog, 
             text="Đóng", 

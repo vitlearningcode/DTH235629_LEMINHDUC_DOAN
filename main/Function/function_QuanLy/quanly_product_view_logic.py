@@ -20,7 +20,7 @@ class QuanLyProductViewLogic:
         params = []
         
         if keyword:
-            query += " WHERE sp.TenSanPham LIKE ?"
+            query += " WHERE sp.TenSanPham LIKE %s" # <-- SỬA LỖI
             params.append(f"%{keyword}%")
             
         query += " ORDER BY sp.MaSanPham"
