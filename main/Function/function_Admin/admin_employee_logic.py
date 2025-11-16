@@ -1,41 +1,242 @@
 # main/Function/function_Admin/admin_employee_logic.py
+# (PHIÊN BẢN NÂNG CẤP - KẾT HỢP PANEL CHI TIẾT VÀ QUYỀN ADMIN)
 
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import ttk, messagebox, filedialog
+from PIL import Image, ImageTk
+import os
+import shutil
 
 class AdminEmployeeLogic:
     def __init__(self, view):
         self.view = view
         self.db = view.db
-
-    def load_employees(self):
-        """Tải dữ liệu nhân viên lên treeview"""
-        # Truy cập treeview qua self.view.employee_tree
-        for item in self.view.employee_tree.get_children(): 
-            self.view.employee_tree.delete(item)
         
-        query = "SELECT MaNguoiDung, TenDangNhap, HoTen, SoDienThoai, Email, VaiTro, TrangThai FROM NguoiDung ORDER BY MaNguoiDung"
-        employees = self.db.fetch_all(query)
-        for emp in employees:
-            self.view.employee_tree.insert("", tk.END, values=(
-                emp['MaNguoiDung'], emp['TenDangNhap'], emp['HoTen'], emp['SoDienThoai'] or "", emp['Email'] or "", emp['VaiTro'], emp['TrangThai']
-            ))
+        # Đường dẫn đến thư mục chứa ảnh avatar
+        self.resource_path = os.path.join(os.path.dirname(__file__), "..", "..", "resource")
+        if not os.path.exists(self.resource_path):
+            os.makedirs(self.resource_path)
+            
+        # Dùng để lưu trữ dữ liệu gốc khi chọn nhân viên
+        self.original_data = {}
+        # Dùng để lưu đường dẫn ảnh mới khi upload
+        self.new_image_path = None
+
+    def load_view(self, tree, keyword=None):
+        """Tải dữ liệu nhân viên lên treeview (thay cho load_employees)"""
+        for item in tree.get_children():
+            tree.delete(item)
+            
+        # Admin có thể thấy tất cả các vai trò
+        query = """
+        SELECT MaNguoiDung, HoTen, SoDienThoai, Email, VaiTro, TrangThai
+        FROM NguoiDung
+        WHERE (VaiTro = 'NhanVien' OR VaiTro = 'QuanLy' OR VaiTro = 'Admin')
+        """
+        params = []
+        if keyword:
+            query += " AND (HoTen LIKE %s OR SoDienThoai LIKE %s)"
+            params.extend([f"%{keyword}%", f"%{keyword}%"])
+            
+        query += " ORDER BY MaNguoiDung"
+        
+        records = self.db.fetch_all(query, params)
+        if records:
+            for rec in records:
+                tree.insert(
+                    "", tk.END,
+                    values=(
+                        rec['MaNguoiDung'], rec['HoTen'], rec['SoDienThoai'] or "",
+                        rec['Email'] or "", rec['VaiTro'], rec['TrangThai']
+                    )
+                )
+
+    def on_employee_select(self, event):
+        """Xử lý khi bấm vào một nhân viên trên Treeview"""
+        try:
+            selected_item = self.view.employee_tree.selection()[0]
+            values = self.view.employee_tree.item(selected_item, 'values')
+            if not values:
+                return
+            
+            emp_id = values[0]
+            query = "SELECT * FROM NguoiDung WHERE MaNguoiDung = %s"
+            data = self.db.fetch_one(query, (emp_id,))
+            
+            if not data:
+                messagebox.showerror("Lỗi", "Không tìm thấy dữ liệu nhân viên.")
+                return
+                
+            # Lưu dữ liệu gốc và reset đường dẫn ảnh
+            self.original_data = data
+            self.new_image_path = None
+            
+            # Tải ảnh và cập nhật thông tin lên panel
+            self.load_employee_image(emp_id)
+            self.view.details_emp_id.config(text=f"ID: {data['MaNguoiDung']}")
+            
+            self.view.details_hoten.delete(0, tk.END)
+            self.view.details_hoten.insert(0, data['HoTen'])
+            
+            self.view.details_sdt.delete(0, tk.END)
+            self.view.details_sdt.insert(0, data['SoDienThoai'] or "")
+            
+            self.view.details_email.delete(0, tk.END)
+            self.view.details_email.insert(0, data['Email'] or "")
+            
+            self.view.details_vaitro.set(data['VaiTro'])
+            self.view.details_trangthai.set(data['TrangThai'])
+            
+            # Vô hiệu hóa nút cập nhật
+            self.view.update_button.config(state="disabled", cursor="")
+            
+        except IndexError:
+            pass # Lỗi khi click vào khoảng trống
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể tải chi tiết: {e}")
+
+    def load_employee_image(self, emp_id, image_path=None):
+        """Tải và hiển thị ảnh avatar"""
+        try:
+            if image_path is None:
+                image_path = os.path.join(self.resource_path, f"{emp_id}.png")
+                
+            if not os.path.exists(image_path):
+                image_path = os.path.join(self.resource_path, "default_avatar.png")
+                
+            if not os.path.exists(image_path):
+                img = Image.new('RGB', (150, 150), color='grey')
+                img.save(image_path)
+                
+            img = Image.open(image_path)
+            img = img.resize((150, 150), Image.Resampling.LANCZOS)
+            
+            self.view.employee_photo = ImageTk.PhotoImage(img)
+            self.view.image_label.config(image=self.view.employee_photo)
+            
+        except Exception as e:
+            print(f"Lỗi tải ảnh: {e}")
+            pass
+
+    def upload_image(self):
+        """Mở cửa sổ chọn file để tải ảnh mới"""
+        try:
+            file_path = filedialog.askopenfilename(
+                title="Chọn ảnh đại diện mới",
+                filetypes=[("Image Files", "*.png *.jpg *.jpeg *.bmp *.gif")]
+            )
+            if not file_path:
+                return
+                
+            self.new_image_path = file_path
+            self.load_employee_image(None, image_path=file_path)
+            self.check_for_changes()
+            
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể mở ảnh: {e}")
+
+    def check_for_changes(self, event=None):
+        """Kiểm tra xem thông tin trên panel có bị thay đổi so với gốc không"""
+        if not self.original_data:
+            return
+            
+        is_changed = False
+        
+        if self.new_image_path is not None:
+            is_changed = True
+            
+        try:
+            if self.view.details_hoten.get() != self.original_data.get('HoTen', ''):
+                is_changed = True
+            if self.view.details_sdt.get() != (self.original_data.get('SoDienThoai') or ""):
+                is_changed = True
+            if self.view.details_email.get() != (self.original_data.get('Email') or ""):
+                is_changed = True
+            if self.view.details_vaitro.get() != self.original_data.get('VaiTro'):
+                is_changed = True
+            if self.view.details_trangthai.get() != self.original_data.get('TrangThai'):
+                is_changed = True
+        except Exception:
+            pass 
+            
+        if is_changed:
+            self.view.update_button.config(state="normal", cursor="hand2")
+        else:
+            self.view.update_button.config(state="disabled", cursor="")
+
+    def update_employee(self):
+        """Lưu các thay đổi từ panel chi tiết vào CSDL"""
+        if not self.original_data:
+            messagebox.showerror("Lỗi", "Không có nhân viên nào được chọn.")
+            return
+            
+        emp_id = self.original_data['MaNguoiDung']
+        
+        new_hoten = self.view.details_hoten.get().strip()
+        new_sdt = self.view.details_sdt.get().strip()
+        new_email = self.view.details_email.get().strip()
+        new_vaitro = self.view.details_vaitro.get()
+        new_trangthai = self.view.details_trangthai.get()
+        
+        if not new_hoten:
+            messagebox.showwarning("Thiếu thông tin", "Họ tên không được để trống.")
+            return
+        
+        # Thêm kiểm tra SĐT (logic từ file quanly)
+        if new_sdt and not (new_sdt.isdigit() and len(new_sdt) == 10):
+            messagebox.showwarning("Sai định dạng", "Số điện thoại phải là 10 chữ số.")
+            return
+
+        try:
+            if self.new_image_path:
+                target_path = os.path.join(self.resource_path, f"{emp_id}.png")
+                img = Image.open(self.new_image_path)
+                img.save(target_path, "PNG")
+                print(f"Đã thay thế ảnh cho ID {emp_id} tại {target_path}")
+                self.new_image_path = None 
+                
+        except Exception as e:
+            messagebox.showerror("Lỗi Lưu Ảnh", f"Không thể lưu ảnh mới: {e}\n\nTuy nhiên, thông tin vẫn sẽ được cập nhật.")
+            
+        try:
+            query = """
+            UPDATE NguoiDung
+            SET HoTen = %s, SoDienThoai = %s, Email = %s, VaiTro = %s, TrangThai = %s, NgayCapNhat = GETDATE()
+            WHERE MaNguoiDung = %s
+            """
+            params = (new_hoten, new_sdt or None, new_email or None, new_vaitro, new_trangthai, emp_id)
+            
+            result = self.db.execute_query(query, params)
+            
+            if result:
+                messagebox.showinfo("Thành công", "Cập nhật thông tin nhân viên thành công.")
+                self.load_view(self.view.employee_tree, self.view.search_entry.get())
+                self.view.update_button.config(state="disabled")
+                self.original_data = self.db.fetch_one("SELECT * FROM NguoiDung WHERE MaNguoiDung = %s", (emp_id,))
+            else:
+                messagebox.showerror("Lỗi", "Cập nhật CSDL thất bại.")
+        except Exception as e:
+            messagebox.showerror("Lỗi CSDL", f"Lỗi: {e}")
+            print(f"Lỗi SQL khi update: {e}")
+
+    # --- CÁC HÀM GỐC CỦA ADMIN (THÊM, XÓA, VALIDATE) ---
     
     def _validate_phone(self, new_text):
         """Chỉ cho phép nhập số và giới hạn 11 ký tự"""
         if new_text == "":
-            return True  # Cho phép xóa (chuỗi rỗng)
+            return True
         if not new_text.isdigit():
-            return False # Từ chối nếu không phải là số
+            return False
         if len(new_text) > 11:
-            return False # Từ chối nếu dài hơn 11 số
+            return False
         return True
 
     def add_employee(self):
-        """Mở cửa sổ Toplevel để thêm nhân viên mới"""
-        dialog = tk.Toplevel(self.view.window) # Dùng self.view.window làm cha
+        """Mở cửa sổ Toplevel để thêm nhân viên mới (Giữ nguyên logic popup)"""
+        dialog = tk.Toplevel(self.view.window) 
         dialog.title("Thêm nhân viên")
         dialog.geometry("500x500")
+        dialog.grab_set()
 
         vcmd = (dialog.register(self._validate_phone), '%P')
         
@@ -58,149 +259,50 @@ class AdminEmployeeLogic:
         def save():
             data = [entries[k].get().strip() for k in ["username", "password", "fullname", "phone", "email", "address"]]
             if not data[0] or not data[1] or not data[2]:
-                messagebox.showwarning("Cảnh báo", "Nhập đủ thông tin bắt buộc!")
+                messagebox.showwarning("Cảnh báo", "Nhập đủ thông tin bắt buộc!", parent=dialog)
                 return
             
             query = "INSERT INTO NguoiDung (TenDangNhap, MatKhau, HoTen, SoDienThoai, Email, DiaChi, VaiTro) VALUES (%s, %s, %s, %s, %s, %s, %s)"
             
-            # Gọi CSDL qua self.db
             if self.db.execute_query(query, (*data, role_var.get())):
-                messagebox.showinfo("Thành công", "Đã thêm nhân viên")
+                messagebox.showinfo("Thành công", "Đã thêm nhân viên", parent=dialog)
                 dialog.destroy()
-                self.load_employees() # Gọi lại hàm load của chính lớp này
+                self.load_view(self.view.employee_tree) 
             else: 
-                messagebox.showerror("Lỗi", "Thất bại")
+                messagebox.showerror("Lỗi", "Thất bại (Có thể trùng Tên đăng nhập)", parent=dialog)
             
         tk.Button(dialog, text="💾 Lưu", bg="#28a745", fg="white", command=save).grid(row=len(fields)+1, columnspan=2, pady=20)
 
-    def edit_employee(self):
-        """Mở cửa sổ Toplevel để sửa thông tin nhân viên"""
-        
-        # 1. Lấy nhân viên đang được chọn
+    def delete_employee(self):
+        """Xử lý xóa nhân viên (Giữ nguyên logic)"""
         selected = self.view.employee_tree.selection()
         if not selected:
-            messagebox.showwarning("Chú ý", "Vui lòng chọn một nhân viên để sửa.")
+            messagebox.showwarning("Chú ý", "Vui lòng chọn một nhân viên để xóa.")
             return
         
         item = self.view.employee_tree.item(selected[0])
         emp_id = item['values'][0]
-        
-        # 2. Lấy dữ liệu đầy đủ của nhân viên đó từ CSDL
-        query = "SELECT * FROM NguoiDung WHERE MaNguoiDung = %s"
-        employee_data = self.db.fetch_one(query, (emp_id,))
-        
-        if not employee_data:
-            messagebox.showerror("Lỗi", "Không tìm thấy dữ liệu nhân viên trong CSDL.")
-            return
+        emp_name = item['values'][1]
 
-        # 3. Tạo cửa sổ Toplevel mới
-        dialog = tk.Toplevel(self.view.window)
-        dialog.title(f"Sửa thông tin nhân viên (ID: {emp_id})")
-        dialog.geometry("500x550") # Cao hơn một chút để chứa trường "Trạng thái"
-        dialog.grab_set() # Giữ focus
-        vcmd = (dialog.register(self._validate_phone), '%P')
-        entries = {}
-        
-        # Tên đăng nhập (Chỉ đọc, không cho sửa)
-        tk.Label(dialog, text="Tên đăng nhập:", font=("Arial", 11)).grid(row=0, column=0, padx=20, pady=10, sticky="w")
-        username_entry = tk.Entry(dialog, font=("Arial", 11), width=30)
-        username_entry.grid(row=0, column=1, padx=20, pady=10)
-        username_entry.insert(0, employee_data['TenDangNhap'])
-        username_entry.config(state="readonly")
-        
-        # Mật khẩu mới (để trống nếu không muốn thay đổi)
-        tk.Label(dialog, text="Mật khẩu mới (nếu đổi):", font=("Arial", 11)).grid(row=1, column=0, padx=20, pady=10, sticky="w")
-        password_entry = tk.Entry(dialog, font=("Arial", 11), width=30, show="*")
-        password_entry.grid(row=1, column=1, padx=20, pady=10)
-        entries['password'] = password_entry
-        
-        # Các trường thông tin khác
-        fields = [("Họ tên:", "fullname", "HoTen"), 
-                  ("Số điện thoại:", "phone", "SoDienThoai"), 
-                  ("Email:", "email", "Email"), 
-                  ("Địa chỉ:", "address", "DiaChi")]
-        
-        for i, (label_text, key, db_key) in enumerate(fields, start=2):
-            tk.Label(dialog, text=label_text, font=("Arial", 11)).grid(row=i, column=0, padx=20, pady=10, sticky="w")
-            entry = tk.Entry(dialog, font=("Arial", 11), width=30)
-            if key == "phone":
-                entry.config(validate='key', validatecommand=vcmd)
-            entry.grid(row=i, column=1, padx=20, pady=10)
-            # Dùng .get(db_key) or "" để tránh lỗi nếu giá trị là None
-            entry.insert(0, employee_data.get(db_key) or "") 
-            entries[key] = entry
-            
-        # Vai trò (Combobox)
-        row_index = len(fields) + 2
-        tk.Label(dialog, text="Vai trò:", font=("Arial", 11)).grid(row=row_index, column=0, padx=20, pady=10, sticky="w")
-        role_var = tk.StringVar(value=employee_data['VaiTro'])
-        role_combo = ttk.Combobox(dialog, textvariable=role_var, values=["Admin", "QuanLy", "NhanVien"], state="readonly", width=28)
-        role_combo.grid(row=row_index, column=1, padx=20, pady=10)
-        
-        # Trạng thái (Combobox)
-        row_index += 1
-        tk.Label(dialog, text="Trạng thái:", font=("Arial", 11)).grid(row=row_index, column=0, padx=20, pady=10, sticky="w")
-        status_var = tk.StringVar(value=employee_data['TrangThai'])
-        status_combo = ttk.Combobox(dialog, textvariable=status_var, values=["HoatDong", "KhongHoatDong"], state="readonly", width=28)
-        status_combo.grid(row=row_index, column=1, padx=20, pady=10)
+        # Kiểm tra không cho tự xóa
+        if emp_id == self.view.user_info['MaNguoiDung']:
+             messagebox.showerror("Lỗi", "Bạn không thể tự xóa chính mình.")
+             return
 
-        # 4. Hàm lưu thay đổi
-        def save_changes():
-            # Lấy dữ liệu từ các ô nhập
-            data = {
-                'fullname': entries['fullname'].get().strip(),
-                'phone': entries['phone'].get().strip() or None, # Lưu None nếu rỗng
-                'email': entries['email'].get().strip() or None, # Lưu None nếu rỗng
-                'address': entries['address'].get().strip() or None, # Lưu None nếu rỗng
-                'role': role_var.get(),
-                'status': status_var.get()
-            }
-            new_password = entries['password'].get().strip()
-
-            if not data['fullname']:
-                messagebox.showwarning("Cảnh báo", "Họ tên không được để trống!", parent=dialog)
-                return
-
-            # Xây dựng câu lệnh UPDATE
-            query_parts = [
-                "HoTen = %s", "SoDienThoai = %s", "Email = %s", 
-                "DiaChi = %s", "VaiTro = %s", "TrangThai = %s"
-            ]
-            params = [
-                data['fullname'], data['phone'], data['email'], 
-                data['address'], data['role'], data['status']
-            ]
-            
-            # Chỉ cập nhật mật khẩu nếu người dùng nhập mật khẩu mới
-            if new_password:
-                query_parts.append("MatKhau = %s")
-                params.append(new_password) # Lưu ý: nên mã hóa mật khẩu ở đây
-            
-            # Thêm MaNguoiDung vào cuối danh sách params cho mệnh đề WHERE
-            params.append(emp_id) 
-            
-            query = f"UPDATE NguoiDung SET {', '.join(query_parts)} WHERE MaNguoiDung = %s"
-            
+        if messagebox.askyesno("Xác nhận xóa", f"Bạn có chắc muốn XÓA nhân viên:\n\n{emp_name} (ID: {emp_id})?"):
             try:
-                if self.db.execute_query(query, tuple(params)):
-                    messagebox.showinfo("Thành công", "Đã cập nhật thông tin nhân viên.", parent=dialog)
-                    dialog.destroy()
-                    self.load_employees() # Tải lại cây danh sách nhân viên
+                result = self.db.execute_query("DELETE FROM NguoiDung WHERE MaNguoiDung = %s", (emp_id,))
+                if result:
+                    messagebox.showinfo("Thành công", "Đã xóa nhân viên.")
+                    self.load_view(self.view.employee_tree) # Tải lại cây
+                    # Xóa thông tin khỏi panel chi tiết
+                    self.view.details_emp_id.config(text="ID: (Chưa chọn)")
+                    self.view.details_hoten.delete(0, tk.END)
+                    self.view.details_sdt.delete(0, tk.END)
+                    self.view.details_email.delete(0, tk.END)
+                    self.view.image_label.config(image=None) 
+                    self.original_data = {}
                 else:
-                    messagebox.showerror("Lỗi", "Cập nhật thất bại.", parent=dialog)
+                    messagebox.showerror("Lỗi", "Xóa thất bại.")
             except Exception as e:
-                messagebox.showerror("Lỗi CSDL", f"Lỗi khi cập nhật: {e}", parent=dialog)
-
-        # 5. Nút lưu
-        tk.Button(dialog, text="💾 Lưu thay đổi", bg="#007bff", fg="white", font=("Arial", 11, "bold"), command=save_changes).grid(row=row_index+1, columnspan=2, pady=20)
-    # --- KẾT THÚC PHẦN ĐƯỢC CẬP NHẬT ---
-
-    def delete_employee(self):
-        """Xử lý xóa nhân viên"""
-        sel = self.view.employee_tree.selection()
-        if not sel: return
-        
-        id = self.view.employee_tree.item(sel[0])['values'][0]
-        if messagebox.askyesno("Xóa", "Xóa nhân viên này?"):
-            self.db.execute_query("DELETE FROM NguoiDung WHERE MaNguoiDung = %s", (id,))
-            self.load_employees() # Tải lại dữ liệu
+                messagebox.showerror("Lỗi CSDL", f"Không thể xóa nhân viên này, có thể do ràng buộc dữ liệu (ví dụ: đã chấm công, lập hóa đơn).\nLỗi: {e}")
