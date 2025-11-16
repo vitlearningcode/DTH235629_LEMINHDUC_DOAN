@@ -264,15 +264,113 @@ class AdminReportsLogic:
                   bg="#6c757d", fg="white", width=15).pack(pady=10)
 
     # --- BÁO CÁO 5 & 6 (Giữ chỗ) ---
+   # --- BÁO CÁO 5: TOP SẢN PHẨM (Đã cập nhật: Chỉ Xe, Giảm dần) ---
     def report_top_products(self): 
-        messagebox.showinfo("Thông báo", 
-                            "Chức năng 'Top Sản Phẩm' đang được phát triển.\n"
-                            "Yêu cầu kỹ thuật: Cần xây dựng câu truy vấn SQL (hoặc Stored Procedure) "
-                            "để tính tổng số lượng bán ra từ 'ChiTietHoaDonSanPham' và 'ChiTietHoaDonPhuTung'.")
+        """Hiển thị Báo cáo Top Sản phẩm (Xe) bán chạy (Không dùng SP)"""
+        
+        title = "Báo cáo Top Sản Phẩm Bán Chạy"
+        # Sử dụng geometry rộng hơn một chút
+        dialog, table_frame = self._create_report_window(title, "800x600") 
+
+        # --- Tạo Khung Nhập Liệu (Filter Frame) ---
+        filter_frame = ttk.Frame(dialog) 
+        filter_frame.pack(pady=10)
+
+        current_year = datetime.now().year
+        current_month = datetime.now().month
+
+        ttk.Label(filter_frame, text="Năm:", font=("Arial", 11)).pack(side=tk.LEFT, padx=(0, 5))
+        year_entry = ttk.Entry(filter_frame, font=("Arial", 11), width=7)
+        year_entry.insert(0, str(current_year))
+        year_entry.pack(side=tk.LEFT, padx=5)
+
+        ttk.Label(filter_frame, text="Tháng:", font=("Arial", 11)).pack(side=tk.LEFT, padx=(10, 5))
+        month_entry = ttk.Entry(filter_frame, font=("Arial", 11), width=5)
+        month_entry.insert(0, str(current_month))
+        month_entry.pack(side=tk.LEFT, padx=5)
+
+        # --- Đóng gói table_frame ---
+        table_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        # --- Tạo Treeview (Đã bỏ cột "Loại") ---
+        columns = ("Ma", "Ten", "SoLuongBan")
+        tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=18)
+        
+        tree.heading("Ma", text="Mã SP")
+        tree.column("Ma", width=80, anchor="center")
+        tree.heading("Ten", text="Tên Sản Phẩm (Xe)")
+        tree.column("Ten", width=450) # Tăng độ rộng
+        tree.heading("SoLuongBan", text="Tổng Số Lượng Bán")
+        tree.column("SoLuongBan", width=150, anchor="e")
+        
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        
+        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # --- Logic tải dữ liệu (hàm lồng) ---
+        def load_report_data():
+            try:
+                year = int(year_entry.get())
+                month = int(month_entry.get())
+                if not (2000 <= year <= 2100 and 1 <= month <= 12):
+                    raise ValueError("Date out of range")
+            except ValueError:
+                messagebox.showerror("Lỗi", "Năm (YYYY) hoặc Tháng (1-12) không hợp lệ.", parent=dialog)
+                return
+
+            for item in tree.get_children():
+                tree.delete(item)
+            dialog.title(f"Top Bán Chạy Tháng {month}/{year}")
+
+            try:
+                # Dùng %s vì database_connection.py sẽ tự chuyển sang '?'
+                params = (year, month)
+                
+                # Query 1: Lấy top Sản phẩm (Xe) và sắp xếp DESC
+                query_sp = """
+                    SELECT 
+                        sp.MaSanPham AS 'Ma',
+                        sp.TenSanPham AS 'Ten',
+                        SUM(ct.SoLuong) AS 'SoLuongBan'
+                    FROM ChiTietHoaDonSanPham ct
+                    JOIN HoaDon hd ON ct.MaHoaDon = hd.MaHoaDon
+                    JOIN SanPham sp ON ct.MaSanPham = sp.MaSanPham
+                    WHERE 
+                        YEAR(hd.NgayLap) = %s 
+                        AND MONTH(hd.NgayLap) = %s
+                        AND hd.TrangThai != 'Huy'
+                    GROUP BY sp.MaSanPham, sp.TenSanPham
+                    ORDER BY SoLuongBan DESC
+                """
+                records_sp = self.db.fetch_all(query_sp, params)
+                
+                # Query 2: ĐÃ XÓA
+                
+                # Kết hợp và Sắp xếp: ĐÃ XÓA (SQL tự sắp xếp)
+                
+                if records_sp:
+                    for rec in records_sp:
+                        tree.insert("", tk.END, values=(
+                            rec['Ma'], 
+                            rec['Ten'], 
+                            rec['SoLuongBan']
+                        ))
+                else:
+                    tree.insert("", tk.END, values=("", "Không có dữ liệu bán hàng cho tháng này.", ""))
+
+            except Exception as e:
+                messagebox.showerror("Lỗi CSDL", f"Không thể thực thi truy vấn: {e}", parent=dialog)
+
+        # --- Nút "Tải báo cáo" ---
+        load_button = ttk.Button(
+            filter_frame, text="Tải báo cáo", 
+            command=load_report_data, 
+            cursor="hand2"
+        )
+        load_button.pack(side=tk.LEFT, padx=10)
+        
+        load_report_data() # Tải lần đầu
     
-    def report_loyal_customers(self): 
-        messagebox.showinfo("Thông báo",
-                            "Chức năng 'Khách Hàng Thân Thiết' đang được phát triển.\n"
-                            "Yêu cầu kỹ thuật: Cần xây dựng câu truy vấn SQL (hoặc Stored Procedure) "
-                            "để tính tổng chi tiêu (SUM TongThanhToan) và số lần mua (COUNT MaHoaDon) "
-                            "từ bảng 'HoaDon' và nhóm theo 'MaKhachHang'.")
+    

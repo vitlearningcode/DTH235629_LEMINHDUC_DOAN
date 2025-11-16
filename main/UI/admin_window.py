@@ -887,7 +887,7 @@ class Admin:
             ("📦 Tồn kho sản phẩm", self.report_logic.report_inventory),
             ("👥 Hiệu suất nhân viên", self.report_logic.report_employee_performance),
             ("🏆 Top sản phẩm bán chạy", self.report_logic.report_top_products),
-            ("👤 Khách hàng thân thiết", self.report_logic.report_loyal_customers),
+            
             ("💰 Công nợ khách hàng", self.report_logic.report_debt)
         ]
         row, col = 0, 0
