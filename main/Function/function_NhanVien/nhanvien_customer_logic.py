@@ -17,24 +17,69 @@ class NhanVienCustomerLogic:
         if len(new_text) > 11:
             return False # Từ chối nếu dài hơn 11 số
         return True
-    def search_customer_by_phone(self):
-        """Tìm khách hàng theo SĐT"""
+    
+    # main/Function/function_NhanVien/nhanvien_customer_logic.py
+# ... (bên dưới hàm _validate_phone)
+
+    def on_phone_entry_release(self, event):
+        """Tự động tìm kiếm khi SĐT đủ 10 số."""
+        phone = event.widget.get().strip()
+        
+        # Chỉ tự động tìm kiếm khi gõ đủ 10 số
+        if len(phone) == 10 and phone.isdigit():
+            # Gọi hàm tìm kiếm và báo nó tự động thêm nếu không thấy
+            self.search_customer_by_phone(auto_add=True)
+        # Nếu gõ < 10 hoặc > 10, xóa tên (nếu có)
+        elif len(phone) != 10:
+             self.view.customer_name_var.set("")
+             if hasattr(self.view, 'current_customer'):
+                del self.view.current_customer
+                
+                
+    # main/Function/function_NhanVien/nhanvien_customer_logic.py
+# (THAY THẾ HÀM CŨ BẰNG HÀM MỚI NÀY)
+
+    def search_customer_by_phone(self, auto_add=False):
+        """
+        Tìm khách hàng theo SĐT.
+        :param auto_add: Nếu True, tự động mở 'Thêm mới' khi không tìm thấy.
+                         Nếu False (default), hỏi người dùng trước.
+        """
         phone = self.view.phone_entry.get().strip()
-        if not phone:
-            messagebox.showwarning("Cảnh báo", "Vui lòng nhập số điện thoại!")
+        
+        # 1. Kiểm tra SĐT phải là 10 số
+        if not (len(phone) == 10 and phone.isdigit()):
+            messagebox.showwarning("Cảnh báo", "Số điện thoại hợp lệ phải có 10 chữ số.")
+            # Xóa thông tin khách hàng cũ nếu SĐT không hợp lệ
+            self.view.customer_name_var.set("")
+            if hasattr(self.view, 'current_customer'):
+                del self.view.current_customer
             return
         
+        # 2. SĐT hợp lệ (10 số), tiến hành tìm kiếm
         query = "SELECT * FROM KhachHang WHERE SoDienThoai = %s"
         customer = self.db.fetch_one(query, (phone,))
         
         if customer:
+            # 3. Tìm thấy
             self.view.current_customer = customer
             self.view.customer_name_var.set(customer['HoTen'])
-            messagebox.showinfo("Thành công", f"Tìm thấy khách hàng: {customer['HoTen']}")
+            if not auto_add: # Nếu là bấm nút "Tìm"
+                messagebox.showinfo("Thành công", f"Tìm thấy khách hàng: {customer['HoTen']}")
         else:
+            # 4. Không tìm thấy
             self.view.customer_name_var.set("")
-            if messagebox.askyesno("Không tìm thấy", "Khách hàng chưa có trong hệ thống.\nBạn có muốn thêm mới?"):
-                self.add_new_customer() # Gọi hàm nội bộ
+            if hasattr(self.view, 'current_customer'):
+                del self.view.current_customer
+            
+            if auto_add:
+                # Nếu gọi từ <KeyRelease>, tự động thêm
+                messagebox.showwarning("Không tìm thấy", f"SĐT {phone} không có trong hệ thống.\nVui lòng thêm khách hàng mới.")
+                self.add_new_customer()
+            else:
+                # Nếu gọi từ nút "Tìm", hỏi người dùng (như logic cũ)
+                if messagebox.askyesno("Không tìm thấy", "Khách hàng chưa có trong hệ thống.\nBạn có muốn thêm mới?"):
+                    self.add_new_customer()
     
     def add_new_customer(self):
         """Thêm khách hàng mới"""

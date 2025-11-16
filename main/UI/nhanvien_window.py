@@ -169,14 +169,18 @@ class NhanVien:
         self.phone_entry = tk.Entry(customer_frame, font=("Arial", 11), width=20)
         self.phone_entry.grid(row=0, column=1, pady=5, padx=5)
         
-        tk.Button(
-            customer_frame,
-            text="🔍 Tìm",
-            font=("Arial", 10),
-            bg=self.btn_color,
-            fg="white",
-            command=self.cust_logic.search_customer_by_phone
-        ).grid(row=0, column=2, pady=5, padx=5)
+        # (Lưu ý: chúng ta cần truyền 'event' nên dùng lambda)
+        self.phone_entry.bind("<KeyRelease>", lambda event: self.cust_logic.on_phone_entry_release(event))
+        # --- KẾT THÚC PHẦN THÊM MỚI ---
+        
+        #tk.Button(
+        #    customer_frame,
+        #    text="🔍 Tìm",
+        #    font=("Arial", 10),
+        #    bg=self.btn_color,
+        #    fg="white",
+        #    command=self.cust_logic.search_customer_by_phone
+         #).grid(row=0, column=2, pady=5, padx=5)
         
         tk.Button(
             customer_frame,
