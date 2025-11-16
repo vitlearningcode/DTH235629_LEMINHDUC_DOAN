@@ -371,7 +371,7 @@ class AdminProductLogic:
                     self.view.details_stock.delete(0, tk.END)
                     self.view.details_hang.set("")
                     self.view.details_loai.set("")
-                    self.view.image_label.config(image=None)
+                    self.view.product_image_label.config(image=None)
                 else:
                     messagebox.showerror("Lỗi", "Xóa thất bại.")
             except Exception as e:
