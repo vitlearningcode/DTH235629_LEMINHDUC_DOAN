@@ -5,6 +5,13 @@ class QuanLyCustomerViewLogic:
     def __init__(self, view):
         self.view = view
         self.db = view.db
+        
+        # Ánh xạ Loại Khách Hàng sang Tiếng Việt
+        self.customer_type_map = {
+            'ThanThiet': 'VIP',
+            'ThongThuong': 'Thường',
+            'TiemNang': 'Tiềm Năng',
+        }
 
     def load_view(self, tree, keyword=None):
         """Tải dữ liệu Xem khách hàng, có hỗ trợ tìm kiếm"""
@@ -15,7 +22,7 @@ class QuanLyCustomerViewLogic:
         params = []
         
         if keyword:
-            query += " WHERE HoTen LIKE %s OR SoDienThoai LIKE %s" # <-- SỬA LỖI
+            query += " WHERE HoTen LIKE %s OR SoDienThoai LIKE %s"
             params.extend([f"%{keyword}%", f"%{keyword}%"])
             
         query += " ORDER BY MaKhachHang DESC"
@@ -24,7 +31,10 @@ class QuanLyCustomerViewLogic:
         
         if records:
             for rec in records:
+                # Ánh xạ loại khách hàng
+                display_type = self.customer_type_map.get(rec['LoaiKhachHang'], rec['LoaiKhachHang'])
+                
                 tree.insert("", tk.END, values=(
                     rec['MaKhachHang'], rec['HoTen'], rec['SoDienThoai'],
-                    rec['DiaChi'] or "", rec['LoaiKhachHang']
+                    rec['DiaChi'] or "", display_type
                 ))

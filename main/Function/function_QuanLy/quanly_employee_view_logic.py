@@ -16,6 +16,20 @@ class QuanLyEmployeeViewLogic:
             os.makedirs(self.resource_path)
         self.original_data = {}
         self.new_image_path = None
+        
+        # --- Ánh xạ trạng thái và vai trò sang Tiếng Việt (GIỮ NGUYÊN) ---
+        self.vaitro_map = {
+            'Admin': 'Quản trị viên',
+            'QuanLy': 'Quản lý',
+            'NhanVien': 'Nhân viên'
+        }
+        self.trangthai_map = {
+            'HoatDong': 'Hoạt động',
+            'KhongHoatDong': 'Không hoạt động'
+        }
+        # --- Ánh xạ ngược (Cần để set Combobox trong on_employee_select) ---
+        self.vaitro_reverse_map = {v: k for k, v in self.vaitro_map.items()}
+        self.trangthai_reverse_map = {v: k for k, v in self.trangthai_map.items()}
 
     def load_view(self, tree, keyword=None):
         for item in tree.get_children():
@@ -33,29 +47,43 @@ class QuanLyEmployeeViewLogic:
         records = self.db.fetch_all(query, params)
         if records:
             for rec in records:
+                
+                # Ánh xạ cho bảng Treeview (LIST)
+                display_vaitro = self.vaitro_map.get(rec['VaiTro'], rec['VaiTro'])
+                display_trangthai = self.trangthai_map.get(rec['TrangThai'], rec['TrangThai'])
+                
                 tree.insert(
                     "", tk.END,
                     values=(
                         rec['MaNguoiDung'], rec['HoTen'], rec['SoDienThoai'] or "",
-                        rec['Email'] or "", rec['VaiTro'], rec['TrangThai']
+                        rec['Email'] or "", display_vaitro, display_trangthai
                     )
                 )
 
     def on_employee_select(self, event):
         try:
             selected_item = self.view.employee_tree.selection()[0]
+            # Lấy dữ liệu đã được ánh xạ tiếng Việt từ Treeview
             values = self.view.employee_tree.item(selected_item, 'values')
-            if not values:
+            
+            if not values or len(values) < 6:
                 return
-            emp_id = values[0]
+            
+            # Lấy ID (không bị ánh xạ) để truy vấn CSDL
+            emp_id = values[0] 
+            
+            # Tải lại dữ liệu gốc từ CSDL
             query = "SELECT * FROM NguoiDung WHERE MaNguoiDung = %s"
             data = self.db.fetch_one(query, (emp_id,))
+            
             if not data:
                 messagebox.showerror("Lỗi", "Không tìm thấy dữ liệu nhân viên.")
                 return
+            
             self.original_data = data
             self.new_image_path = None
             self.load_employee_image(emp_id)
+            
             self.view.details_emp_id.config(text=f"ID: {data['MaNguoiDung']}")
             self.view.details_hoten.delete(0, tk.END)
             self.view.details_hoten.insert(0, data['HoTen'])
@@ -63,8 +91,18 @@ class QuanLyEmployeeViewLogic:
             self.view.details_sdt.insert(0, data['SoDienThoai'] or "")
             self.view.details_email.delete(0, tk.END)
             self.view.details_email.insert(0, data['Email'] or "")
-            self.view.details_vaitro.set(data['VaiTro'])
-            self.view.details_trangthai.set(data['TrangThai'])
+            
+            # --- CẬP NHẬT CHỖ NÀY: Ánh xạ giá trị gốc sang Tiếng Việt để set Combobox ---
+            # Ví dụ: data['VaiTro'] = 'QuanLy' -> set Combobox = 'Quản lý'
+            display_vaitro = self.vaitro_map.get(data['VaiTro'], data['VaiTro'])
+            display_trangthai = self.trangthai_map.get(data['TrangThai'], data['TrangThai'])
+            
+            # Phải đảm bảo danh sách values của Combobox trong file UI cũng là tiếng Việt
+            # DÙNG DISPLAY VALUE ĐỂ SET CHO UI
+            self.view.details_vaitro.set(display_vaitro)
+            self.view.details_trangthai.set(display_trangthai)
+            # -------------------------------------------------------------------------
+            
             self.view.update_button.config(state="disabled")
         except IndexError:
             pass
@@ -108,6 +146,16 @@ class QuanLyEmployeeViewLogic:
         is_changed = False
         if self.new_image_path is not None:
             is_changed = True
+            
+        # --- Lấy giá trị gốc (mã) để so sánh với original_data ---
+        # Ta cần map ngược giá trị tiếng Việt trong Combobox về mã gốc trước khi so sánh
+        current_vaitro_vn = self.view.details_vaitro.get()
+        current_trangthai_vn = self.view.details_trangthai.get()
+        
+        current_vaitro_code = self.vaitro_reverse_map.get(current_vaitro_vn, current_vaitro_vn)
+        current_trangthai_code = self.trangthai_reverse_map.get(current_trangthai_vn, current_trangthai_vn)
+        # ---------------------------------------------------------
+        
         try:
             if self.view.details_hoten.get() != self.original_data.get('HoTen', ''):
                 is_changed = True
@@ -115,12 +163,15 @@ class QuanLyEmployeeViewLogic:
                 is_changed = True
             if self.view.details_email.get() != (self.original_data.get('Email') or ""):
                 is_changed = True
-            if self.view.details_vaitro.get() != self.original_data.get('VaiTro'):
+                
+            # So sánh mã gốc
+            if current_vaitro_code != self.original_data.get('VaiTro'):
                 is_changed = True
-            if self.view.details_trangthai.get() != self.original_data.get('TrangThai'):
+            if current_trangthai_code != self.original_data.get('TrangThai'):
                 is_changed = True
         except Exception:
             pass
+            
         if is_changed:
             self.view.update_button.config(state="normal", cursor="hand2")
         else:
@@ -130,18 +181,28 @@ class QuanLyEmployeeViewLogic:
         if not self.original_data:
             messagebox.showerror("Lỗi", "Không có nhân viên nào được chọn.")
             return
+            
+        # Lấy giá trị tiếng Việt từ Combobox
+        new_vaitro_vn = self.view.details_vaitro.get()
+        new_trangthai_vn = self.view.details_trangthai.get()
+        
+        # --- Ánh xạ ngược về mã gốc để lưu vào CSDL ---
+        new_vaitro = self.vaitro_reverse_map.get(new_vaitro_vn, new_vaitro_vn)
+        new_trangthai = self.trangthai_reverse_map.get(new_trangthai_vn, new_trangthai_vn)
+        # -----------------------------------------------
+        
         emp_id = self.original_data['MaNguoiDung']
         new_hoten = self.view.details_hoten.get().strip()
         new_sdt = self.view.details_sdt.get().strip()
         new_email = self.view.details_email.get().strip()
-        new_vaitro = self.view.details_vaitro.get()
-        new_trangthai = self.view.details_trangthai.get()
+        
         if not new_hoten:
             messagebox.showwarning("Thiếu thông tin", "Họ tên không được để trống.")
             return
         if not (new_sdt.isdigit() and len(new_sdt) == 10):
             messagebox.showwarning("Sai định dạng", "Số điện thoại phải là 10 chữ số.")
             return
+            
         try:
             if self.new_image_path:
                 target_path = os.path.join(self.resource_path, f"{emp_id}.png")
@@ -151,16 +212,19 @@ class QuanLyEmployeeViewLogic:
                 self.new_image_path = None
         except Exception as e:
             messagebox.showerror("Lỗi Lưu Ảnh", f"Không thể lưu ảnh mới: {e}\n\nTuy nhiên, thông tin vẫn sẽ được cập nhật.")
+            
         try:
             query = """
             UPDATE NguoiDung
             SET HoTen = %s, SoDienThoai = %s, Email = %s, VaiTro = %s, TrangThai = %s, NgayCapNhat = GETDATE()
             WHERE MaNguoiDung = %s
             """
+            # SỬ DỤNG MÃ GỐC ĐÃ ÁNH XẠ NGƯỢC
             params = (new_hoten, new_sdt, new_email or None, new_vaitro, new_trangthai, emp_id)
             print("Params cập nhật:", params)
             result = self.db.execute_query(query, params)
             print("Kết quả cập nhật:", result)
+            
             if result:
                 messagebox.showinfo("Thành công", "Cập nhật thông tin nhân viên thành công.")
                 self.load_view(self.view.employee_tree, self.view.search_entry.get())
@@ -171,4 +235,3 @@ class QuanLyEmployeeViewLogic:
         except Exception as e:
             messagebox.showerror("Lỗi CSDL", f"Lỗi: {e}")
             print(f"Lỗi SQL khi update: {e}")
-    

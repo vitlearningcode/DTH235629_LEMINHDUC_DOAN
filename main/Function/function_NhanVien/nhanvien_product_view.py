@@ -180,7 +180,7 @@ class NhanVienProductView:
                 query = """
                     SELECT MaSanPham, TenSanPham, GiaBan, SoLuongTon
                     FROM SanPham
-                    ORDER BY TenSanPham
+                    ORDER BY MaSanPham ASC
                 """
                 
                 rows = self.parent.db.fetch_all(query)

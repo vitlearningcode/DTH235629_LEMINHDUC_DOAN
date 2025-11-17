@@ -1,13 +1,15 @@
 # main/Function/function_Admin/admin_promotion_logic.py
 import tkinter as tk
-from tkinter import ttk, messagebox   # <-- THÊM DÒNG NÀY
+from tkinter import ttk, messagebox
 from datetime import datetime
+
 class AdminPromotionLogic:
     def __init__(self, view):
         self.view = view
         self.db = view.db
 
     def load_promotions(self):
+        """Tải danh sách khuyến mãi lên Treeview"""
         for item in self.view.promo_tree.get_children(): 
             self.view.promo_tree.delete(item)
         
@@ -21,14 +23,21 @@ class AdminPromotionLogic:
         """
         promos = self.db.fetch_all(query)
         for p in promos:
+            # Format giá trị
             value = f"{p['GiaTri']:,.0f}%" if p['LoaiKhuyenMai'] == 'PhanTram' else f"{p['GiaTri']:,.0f} VNĐ"
-            self.view.promo_tree.insert("", tk.END, values=(
-                p['MaKhuyenMai'], p['TenKhuyenMai'], p['LoaiKhuyenMai'], value, 
-                p['NgayBatDau'], p['NgayKetThuc'], p['TrangThai']
-            ))
+            
+            # --- 1. CHUYỂN ĐỔI HIỂN THỊ TRẠNG THÁI (Data -> Tiếng Việt) ---
+            trang_thai_vn = "Hoạt động" if p['TrangThai'] == 'HoatDong' else "Không hoạt động"
 
-    # Mở file: main/Function/function_Admin/admin_promotion_logic.py
-# BỔ SUNG 4 hàm mới này vào cuối file:
+            self.view.promo_tree.insert("", tk.END, values=(
+                p['MaKhuyenMai'], 
+                p['TenKhuyenMai'], 
+                p['LoaiKhuyenMai'], 
+                value, 
+                p['NgayBatDau'], 
+                p['NgayKetThuc'], 
+                trang_thai_vn # Hiển thị tiếng Việt
+            ))
 
     def _show_promo_dialog(self, promo_data=None):
         """Hàm nội bộ: Hiển thị cửa sổ Toplevel cho Thêm hoặc Sửa Khuyến mãi"""
@@ -45,7 +54,8 @@ class AdminPromotionLogic:
 
         entries = {}
         
-        # Định nghĩa các trường dựa trên database_setup.sql
+        # Định nghĩa các trường
+        # Lưu ý: Combobox 'TrangThai' dùng Tiếng Việt
         fields = [
             ("Tên Khuyến Mãi:", "TenKhuyenMai", "entry", None),
             ("Loại Khuyến Mãi:", "LoaiKhuyenMai", "combo", ['PhanTram', 'TienMat']),
@@ -53,7 +63,7 @@ class AdminPromotionLogic:
             ("Ngày Bắt Đầu (YYYY-MM-DD):", "NgayBatDau", "entry", None),
             ("Ngày Kết Thúc (YYYY-MM-DD):", "NgayKetThuc", "entry", None),
             ("Điều Kiện:", "DieuKien", "text", None),
-            ("Trạng Thái:", "TrangThai", "combo", ['HoatDong', 'KhongHoatDong'])
+            ("Trạng Thái:", "TrangThai", "combo", ['Hoạt động', 'Không hoạt động']) 
         ]
 
         # Tạo các widget
@@ -64,7 +74,6 @@ class AdminPromotionLogic:
                 val = ""
                 if is_edit:
                     val = promo_data.get(key) or ""
-                    # Đặc biệt xử lý ngày tháng để loại bỏ phần giờ (nếu có)
                     if key in ["NgayBatDau", "NgayKetThuc"] and val:
                         val = str(val).split(" ")[0]
                 elif default:
@@ -78,9 +87,16 @@ class AdminPromotionLogic:
             elif widget_type == "combo":
                 val = tk.StringVar()
                 if is_edit:
-                    val.set(promo_data.get(key))
+                    db_val = promo_data.get(key)
+                    
+                    # --- 2. CHUYỂN ĐỔI KHI EDIT (Data -> Tiếng Việt cho Combobox) ---
+                    if key == "TrangThai":
+                        val.set("Hoạt động" if db_val == 'HoatDong' else "Không hoạt động")
+                    else:
+                        val.set(db_val)
+                        
                 elif default:
-                    val.set(default[0]) # Lấy giá trị đầu tiên
+                    val.set(default[0]) 
 
                 combo = ttk.Combobox(container, textvariable=val, values=default, state="readonly", width=38, font=("Arial", 11))
                 combo.grid(row=i, column=1, padx=10, pady=10)
@@ -120,6 +136,9 @@ class AdminPromotionLogic:
                     messagebox.showwarning("Lỗi logic", "Ngày kết thúc không được sớm hơn ngày bắt đầu.", parent=dialog)
                     return
 
+                # --- 3. CHUYỂN ĐỔI TRƯỚC KHI LƯU (Tiếng Việt -> Data) ---
+                trang_thai_db = "HoatDong" if data['TrangThai'] == "Hoạt động" else "KhongHoatDong"
+
                 # Chuẩn bị query
                 if is_edit:
                     query = """
@@ -130,8 +149,8 @@ class AdminPromotionLogic:
                     """
                     params = (
                         data['TenKhuyenMai'], data['LoaiKhuyenMai'], gia_tri, ngay_bd, ngay_kt,
-                        data['DieuKien'], data['TrangThai'],
-                        promo_data['MaKhuyenMai'] # ID cho WHERE
+                        data['DieuKien'], trang_thai_db, # Dùng biến đã convert
+                        promo_data['MaKhuyenMai']
                     )
                 else:
                     query = """
@@ -141,7 +160,7 @@ class AdminPromotionLogic:
                     """
                     params = (
                         data['TenKhuyenMai'], data['LoaiKhuyenMai'], gia_tri, ngay_bd, ngay_kt,
-                        data['DieuKien'], data['TrangThai']
+                        data['DieuKien'], trang_thai_db # Dùng biến đã convert
                     )
                 
                 # Thực thi
@@ -162,12 +181,9 @@ class AdminPromotionLogic:
         
         tk.Button(container, text=btn_text, font=("Arial", 12, "bold"), bg=btn_color, fg="white", command=save, width=20, height=2).grid(row=len(fields), column=0, columnspan=2, pady=20)
 
-
-    # --- CHỨC NĂNG THÊM MỚI ---
     def add_promotion(self):
-        self._show_promo_dialog(None) # Gọi hàm nội bộ với dữ liệu rỗng
+        self._show_promo_dialog(None)
     
-    # --- CHỨC NĂNG SỬA ---
     def edit_promotion(self):
         selected = self.view.promo_tree.selection()
         if not selected:
@@ -175,16 +191,13 @@ class AdminPromotionLogic:
             return
         
         promo_id = self.view.promo_tree.item(selected[0])['values'][0]
-        
-        # Lấy dữ liệu GỐC từ CSDL (vì dữ liệu trên cây đã bị format)
         promo_data = self.db.fetch_one("SELECT * FROM KhuyenMai WHERE MaKhuyenMai = %s", (promo_id,))
         
         if promo_data:
-            self._show_promo_dialog(promo_data) # Gọi hàm nội bộ với dữ liệu đã tải
+            self._show_promo_dialog(promo_data)
         else:
             messagebox.showerror("Lỗi", "Không tìm thấy dữ liệu khuyến mãi này.")
 
-    # --- CHỨC NĂNG XÓA ---
     def delete_promotion(self):
         selected = self.view.promo_tree.selection()
         if not selected:
@@ -195,7 +208,6 @@ class AdminPromotionLogic:
         promo_id = item['values'][0]
         promo_name = item['values'][1]
 
-        # Kiểm tra ràng buộc khóa ngoại (MaKhuyenMai trong HoaDon)
         check_query = "SELECT COUNT(*) as total FROM HoaDon WHERE MaKhuyenMai = %s"
         usage = self.db.fetch_one(check_query, (promo_id,))
 

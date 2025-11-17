@@ -1,5 +1,5 @@
 # main/Function/function_QuanLy/quanly_warehouse_view_logic.py
-# (Đã thêm chức năng show_warehouse_details)
+# (Đã thêm chức năng show_warehouse_details và Việt hóa trạng thái)
 
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -8,9 +8,17 @@ class QuanLyWarehouseViewLogic:
     def __init__(self, view):
         self.view = view
         self.db = view.db
+        
+        # Ánh xạ Trạng thái Phiếu nhập sang Tiếng Việt
+        self.status_map = {
+            'ChoXacNhan   ': 'Chờ xác nhận',
+            'DaXacNhan': 'Đã xác nhận',
+            'Huy': 'Đã hủy',
+            # Thêm các trạng thái khác nếu có
+        }
 
     def load_view(self, tree, keyword=None):
-        """Tải dữ liệu Xem kho (Phiếu nhập), có hỗ trợ tìm kiếm"""
+        """Tải dữ liệu Xem kho (Phiếu nhập), """
         for item in tree.get_children():
             tree.delete(item)
             
@@ -26,7 +34,6 @@ class QuanLyWarehouseViewLogic:
         params = []
 
         if keyword:
-            # SỬA LỖI: Dùng %s
             query += " WHERE n.TenNhaCungCap LIKE %s OR CAST(p.MaPhieuNhap AS VARCHAR(20)) = %s"
             params.extend([f"%{keyword}%", keyword])
 
@@ -36,15 +43,18 @@ class QuanLyWarehouseViewLogic:
         
         if records:
             for rec in records:
+                # Ánh xạ trạng thái
+                display_status = self.status_map.get(rec['TrangThai'], rec['TrangThai'])
+                
                 tree.insert("", tk.END, values=(
                     rec['MaPhieuNhap'], rec['TenNhaCungCap'] or "N/A", rec['NguoiNhap'] or "N/A",
-                    rec['NgayNhap'], f"{rec['TongTien']:,.0f} VNĐ", rec['TrangThai']
+                    rec['NgayNhap'], f"{rec['TongTien']:,.0f} VNĐ", display_status
                 ))
 
     def show_warehouse_details(self):
         """Hiển thị chi tiết một Phiếu Nhập Kho (Sản phẩm và Phụ tùng)"""
         try:
-            tree = self.view.warehouse_tree # Lấy tree từ self.view
+            tree = self.view.warehouse_tree
             selected = tree.selection()
             if not selected:
                 messagebox.showwarning("Cảnh báo", "Vui lòng chọn một phiếu kho để xem!")
@@ -71,7 +81,6 @@ class QuanLyWarehouseViewLogic:
         sp_tree.column("Tên sản phẩm", width=300)
         sp_tree.pack(fill=tk.BOTH, expand=True)
 
-        # SỬA LỖI: Dùng %s
         query_sp = """
             SELECT sp.TenSanPham, ctpn.SoLuong, ctpn.DonGia
             FROM ChiTietPhieuNhapSanPham ctpn
@@ -96,7 +105,6 @@ class QuanLyWarehouseViewLogic:
         pt_tree.column("Tên phụ tùng", width=300)
         pt_tree.pack(fill=tk.BOTH, expand=True)
 
-        # SỬA LỖI: Dùng %s
         query_pt = """
             SELECT pt.TenPhuTung, ctpn.SoLuong, ctpn.DonGia
             FROM ChiTietPhieuNhapPhuTung ctpn

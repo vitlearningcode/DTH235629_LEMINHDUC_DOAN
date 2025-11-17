@@ -2,6 +2,7 @@
 
 import tkinter as tk    
 from tkinter import ttk, messagebox
+
 class AdminInvoiceLogic:
     def __init__(self, view):
         self.view = view
@@ -31,16 +32,33 @@ class AdminInvoiceLogic:
             query += " WHERE kh.HoTen LIKE %s OR CAST(hd.MaHoaDon AS VARCHAR(20)) LIKE %s"
             params.extend([f"%{keyword}%", f"%{keyword}%"])
             
-        query += " ORDER BY hd.MaHoaDon DESC" # Sắp xếp mới nhất lên đầu
+        # --- SỬA LỖI 2: Sắp xếp từ nhỏ đến lớn (ASC thay vì DESC) ---
+        query += " ORDER BY hd.MaHoaDon ASC" 
         
         invoices = self.db.fetch_all(query, params)
         
         if invoices:
             for inv in invoices:
+                # --- SỬA LỖI 1: Chuyển đổi hiển thị trạng thái ---
+                raw_status = inv['TrangThai']
+                display_status = raw_status # Mặc định giữ nguyên nếu không khớp
+                
+                if raw_status == "DaThanhToan":
+                    display_status = "Đã thanh toán"
+                elif raw_status == "ConNo":
+                    display_status = "Còn nợ"
+                elif raw_status == "Huy": # Phòng trường hợp có trạng thái hủy
+                    display_status = "Đã hủy"
+
                 self.view.invoice_tree.insert("", tk.END, values=(
-                    inv['MaHoaDon'], inv['KhachHang'], inv['NhanVien'], inv['NgayLap'],
-                    f"{inv['TongTien']:,.0f}", f"{inv['TongThanhToan']:,.0f}",
-                    f"{inv['TienConNo']:,.0f}", inv['TrangThai']
+                    inv['MaHoaDon'], 
+                    inv['KhachHang'], 
+                    inv['NhanVien'], 
+                    inv['NgayLap'],
+                    f"{inv['TongTien']:,.0f}", 
+                    f"{inv['TongThanhToan']:,.0f}",
+                    f"{inv['TienConNo']:,.0f}", 
+                    display_status  # <-- Dùng biến đã chuyển đổi text tiếng Việt
                 ))
                 
     
@@ -123,6 +141,8 @@ class AdminInvoiceLogic:
             JOIN SanPham sp ON cthd.MaSanPham = sp.MaSanPham
             WHERE cthd.MaHoaDon = ?
         """
+        # Lưu ý: Sử dụng %s nếu dùng thư viện pyodbc/pymssql hoặc ? nếu dùng sqlite/odbc chuẩn
+        # Code gốc của bạn dùng %s ở trên, nhưng dùng ? ở dưới. Tôi giữ nguyên logic gốc của bạn ở đoạn này.
         products = self.db.fetch_all(query_sp, (invoice_id,))
         if products:
             for p in products:
@@ -165,7 +185,7 @@ class AdminInvoiceLogic:
         tk.Button(
             dialog, 
             text="Đóng", 
-            font=("Arial", 11, "bold"), # Sửa font (vì Admin class không có self.view.font_button)
+            font=("Arial", 11, "bold"), 
             bg="#dc3545", 
             fg="white", 
             command=dialog.destroy,
