@@ -56,6 +56,7 @@ class NhanVien:
         self.window.protocol("WM_DELETE_WINDOW", self.system_logic.on_closing)
         self.window.mainloop()
     
+    
     def setup_ui(self):
         """Thiết lập giao diện (Chỉ UI)"""
         # Header
@@ -371,6 +372,8 @@ class NhanVien:
     # Mở file: main/UI/nhanvien_window.py
 # THAY THẾ toàn bộ hàm show_service_screen CŨ bằng hàm MỚI này:
 
+    # Trong file main/UI/nhanvien_window.py
+
     def show_service_screen(self):
         """Vẽ Màn hình dịch vụ sửa chữa"""
         self.clear_content()
@@ -386,7 +389,7 @@ class NhanVien:
         main_frame = tk.Frame(self.content_frame, bg=self.bg_color)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
         
-        # --- CỘT TRÁI: TÌM KIẾM VÀ DANH SÁCH BẢO HÀNH ---
+        # --- CỘT TRÁI ---
         left_frame = tk.Frame(main_frame, bg=self.bg_color)
         left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10)
 
@@ -396,19 +399,23 @@ class NhanVien:
         customer_frame.pack(fill=tk.X, pady=10)
         
         tk.Label(customer_frame, text="SĐT Khách hàng:", font=("Arial", 11), bg="white").grid(row=0, column=0, sticky="w", pady=5)
-        # Gán Entry vào self.view (tức là self) để logic có thể truy cập
-        self.service_phone_entry = tk.Entry(customer_frame, font=("Arial", 11), width=20)
+        
+        self.service_phone_entry = tk.Entry(customer_frame, font=("Arial", 11), width=30)
         self.service_phone_entry.grid(row=0, column=1, pady=5, padx=5)
         
-        tk.Button(
-            customer_frame, text="🔍 Tìm", font=("Arial", 10), bg=self.btn_color, fg="white",
-            command=self.service_logic.search_customer_by_phone
-        ).grid(row=0, column=2, pady=5, padx=5)
+        # --- THAY ĐỔI Ở ĐÂY: Bỏ nút Tìm, Thêm sự kiện Bind ---
+        # Bind sự kiện nhả phím để tự động tìm
+        self.service_phone_entry.bind("<KeyRelease>", self.service_logic.on_service_phone_change)
+        
+        # (Đã xóa nút Button "Tìm" ở đây)
+        # -----------------------------------------------------
         
         tk.Label(customer_frame, text="Họ tên:", font=("Arial", 11), bg="white").grid(row=1, column=0, sticky="w", pady=5)
-        self.service_customer_name_var = tk.StringVar(value="Vui lòng tìm SĐT...")
+        self.service_customer_name_var = tk.StringVar(value="Vui lòng nhập SĐT...")
         tk.Entry(customer_frame, textvariable=self.service_customer_name_var, font=("Arial", 11), width=40, state="readonly").grid(row=1, column=1, columnspan=2, pady=5, padx=5, sticky="w")
 
+        # ... (Phần còn lại của hàm show_service_screen giữ nguyên: Treeview bảo hành, Treeview lịch sử...) ...
+        
         # 2. Khung danh sách phiếu bảo hành
         warranty_frame = tk.LabelFrame(left_frame, text="Danh sách Phiếu Bảo Hành (Xe đã mua)", 
                                        font=("Arial", 12, "bold"), bg="white", padx=10, pady=10)
@@ -424,12 +431,10 @@ class NhanVien:
         self.warranty_tree.column("Đến Ngày", width=100, anchor="center")
         self.warranty_tree.column("Trạng Thái", width=100, anchor="center")
         
-        # Gán sự kiện click (chọn) vào hàm logic
         self.warranty_tree.bind("<<TreeviewSelect>>", self.service_logic.on_warranty_select)
-        
         self.warranty_tree.pack(fill=tk.BOTH, expand=True)
 
-        # --- CỘT PHẢI: LỊCH SỬ SỬA CHỮA ---
+        # --- CỘT PHẢI ---
         right_frame = tk.Frame(main_frame, bg=self.bg_color, width=500)
         right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, padx=10)
         right_frame.pack_propagate(False)
@@ -464,9 +469,16 @@ class NhanVien:
             height=2
         ).pack(fill=tk.X, pady=20)
     
+    # Thêm hàm này vào trong class NhanVien (ví dụ: đặt dưới hàm show_service_screen)
     def view_products(self):
         """Gọi lớp tách riêng để hiển thị màn hình sản phẩm."""
-        return self.product_view.show()
+        # Đảm bảo self.product_view đã được khởi tạo trong __init__
+        if hasattr(self, 'product_view'):
+            return self.product_view.show()
+        else:
+            from Function.function_NhanVien.nhanvien_product_view import NhanVienProductView
+            self.product_view = NhanVienProductView(self)
+            return self.product_view.show()
     
     def view_invoice_history(self):
         """Vẽ Màn hình lịch sử hóa đơn"""
