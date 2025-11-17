@@ -145,12 +145,12 @@ class AdminWarehouseLogic:
         
         dialog = tk.Toplevel(self.view.window)
         dialog.title(f"Chi tiết Phiếu Nhập #{pn_id}")
-        dialog.geometry("900x600" if not is_view_only else "500x600")
+        dialog.geometry("1200x700" if not is_view_only else "600x700")
         
         # --- Input Frame ---
-        input_frame = tk.Frame(dialog, width=400, bd=2, relief=tk.RIDGE)
+        input_frame = tk.Frame(dialog, bd=2, relief=tk.RIDGE, bg="#f0f0f0")
 
-        tk.Label(input_frame, text="THÊM HÀNG VÀO PHIẾU", font=("Arial", 14, "bold")).pack(pady=10)
+        tk.Label(input_frame, text="THÊM HÀNG VÀO PHIẾU", font=("Arial", 14, "bold"), bg="#f0f0f0").pack(pady=10)
 
         tab_control = ttk.Notebook(input_frame)
         tab_products = ttk.Frame(tab_control)
@@ -160,33 +160,44 @@ class AdminWarehouseLogic:
         tab_control.pack(fill=tk.BOTH, expand=True, pady=5, padx=5)
 
         cols_sp = ("Mã SP", "Tên Sản Phẩm", "Hãng")
-        tree_sp = ttk.Treeview(tab_products, columns=cols_sp, show="headings", height=15)
+        tree_sp = ttk.Treeview(tab_products, columns=cols_sp, show="headings", height=8)
         for col in cols_sp: tree_sp.heading(col, text=col)
         tree_sp.column("Mã SP", width=50)
-        tree_sp.column("Tên Sản Phẩm", width=200)
+        tree_sp.column("Tên Sản Phẩm", width=150)
+        tree_sp.column("Hãng", width=80)
         tree_sp.pack(fill=tk.BOTH, expand=True)
 
         cols_pt = ("Mã PT", "Tên Phụ Tùng", "Loại")
-        tree_pt = ttk.Treeview(tab_parts, columns=cols_pt, show="headings", height=15)
+        tree_pt = ttk.Treeview(tab_parts, columns=cols_pt, show="headings", height=8)
         for col in cols_pt: tree_pt.heading(col, text=col)
         tree_pt.column("Mã PT", width=50)
-        tree_pt.column("Tên Phụ Tùng", width=200)
+        tree_pt.column("Tên Phụ Tùng", width=150)
+        tree_pt.column("Loại", width=80)
         tree_pt.pack(fill=tk.BOTH, expand=True)
         
-        entry_frame = tk.Frame(input_frame)
-        entry_frame.pack(pady=10)
+        entry_frame = tk.Frame(input_frame, bg="#f0f0f0")
+        entry_frame.pack(pady=10, padx=10)
 
-        tk.Label(entry_frame, text="Số Lượng:", font=("Arial", 11)).grid(row=0, column=0, padx=5, pady=5)
-        dialog.entry_so_luong = tk.Entry(entry_frame, font=("Arial", 11), width=15)
-        dialog.entry_so_luong.grid(row=0, column=1, padx=5, pady=5)
+        tk.Label(entry_frame, text="Số Lượng:", font=("Arial", 11), bg="#f0f0f0").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+        dialog.entry_so_luong = tk.Entry(entry_frame, font=("Arial", 11), width=20)
+        dialog.entry_so_luong.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
 
-        tk.Label(entry_frame, text="Đơn Giá Nhập:", font=("Arial", 11)).grid(row=1, column=0, padx=5, pady=5)
-        dialog.entry_don_gia = tk.Entry(entry_frame, font=("Arial", 11), width=15)
-        dialog.entry_don_gia.grid(row=1, column=1, padx=5, pady=5)
+        tk.Label(entry_frame, text="Đơn Giá Nhập:", font=("Arial", 11), bg="#f0f0f0").grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
+        dialog.entry_don_gia = tk.Entry(entry_frame, font=("Arial", 11), width=20)
+        dialog.entry_don_gia.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
 
-        tk.Button(input_frame, text="➕ Thêm vào Phiếu Nhập", font=("Arial", 11, "bold"), 
-                  bg="#007bff", fg="white", 
-                  command=lambda: self._add_item_to_phieu(dialog, pn_id, tab_control, tree_sp, tree_pt)).pack(pady=10)
+        # Nút Thêm và Xóa - hiển thị khi không phải view_only
+        if not is_view_only:
+            button_frame = tk.Frame(input_frame, bg="#f0f0f0")
+            button_frame.pack(pady=10)
+            
+            tk.Button(button_frame, text="➕ Thêm vào Phiếu Nhập", font=("Arial", 10, "bold"), 
+                      bg="#007bff", fg="white", width=25,
+                      command=lambda: self._add_item_to_phieu(dialog, pn_id, tab_control, tree_sp, tree_pt)).pack(pady=5)
+            
+            tk.Button(button_frame, text="🗑️ Xóa mục đã chọn", font=("Arial", 10, "bold"), 
+                      bg="#dc3545", fg="white", width=25,
+                      command=lambda: self._delete_item_from_phieu(dialog, pn_id)).pack(pady=5)
 
         self._load_all_products(tree_sp)
         self._load_all_parts(tree_pt)
@@ -197,7 +208,7 @@ class AdminWarehouseLogic:
         if is_view_only:
             display_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
         else:
-            input_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
+            input_frame.pack(side=tk.LEFT, fill=tk.BOTH, padx=10, pady=10, expand=False)
             display_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         tk.Label(display_frame, text="CHI TIẾT ĐÃ NHẬP", font=("Arial", 14, "bold")).pack(pady=10)
@@ -219,11 +230,6 @@ class AdminWarehouseLogic:
         for col in cols_pt_detail: dialog.tree_pt_detail.heading(col, text=col)
         dialog.tree_pt_detail.column("MaChiTiet", width=0, stretch=tk.NO)
         dialog.tree_pt_detail.pack(fill=tk.BOTH, expand=True)
-
-        if not is_view_only:
-            tk.Button(display_frame, text="🗑️ Xóa mục đã chọn", font=("Arial", 11, "bold"), 
-                      bg="#dc3545", fg="white", 
-                      command=lambda: self._delete_item_from_phieu(dialog, pn_id)).pack(pady=10)
         
         if is_view_only:
             tk.Button(display_frame, text="Đóng", font=("Arial", 11, "bold"), 
