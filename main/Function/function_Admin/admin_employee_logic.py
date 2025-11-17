@@ -274,7 +274,11 @@ class AdminEmployeeLogic:
         tk.Button(dialog, text="💾 Lưu", bg="#28a745", fg="white", command=save).grid(row=len(fields)+1, columnspan=2, pady=20)
 
     def delete_employee(self):
-        """Xử lý xóa nhân viên (Giữ nguyên logic)"""
+        """
+        Xử lý xóa nhân viên (FULL LOGIC: Xử lý ràng buộc khóa ngoại).
+        1. Kiểm tra trạng thái (Phải là 'KhongHoatDong').
+        2. Xử lý dữ liệu liên quan (ChamCong, HoaDon,...) trước khi xóa.
+        """
         selected = self.view.employee_tree.selection()
         if not selected:
             messagebox.showwarning("Chú ý", "Vui lòng chọn một nhân viên để xóa.")
@@ -283,26 +287,59 @@ class AdminEmployeeLogic:
         item = self.view.employee_tree.item(selected[0])
         emp_id = item['values'][0]
         emp_name = item['values'][1]
+        emp_status = item['values'][5]
 
-        # Kiểm tra không cho tự xóa
-        if emp_id == self.view.user_info['MaNguoiDung']:
-             messagebox.showerror("Lỗi", "Bạn không thể tự xóa chính mình.")
+        # 1. Chặn nếu đang Hoạt Động
+        if emp_status == 'HoatDong':
+            messagebox.showwarning("Không thể xóa", f"Nhân viên '{emp_name}' đang HOẠT ĐỘNG.\nVui lòng chuyển trạng thái sang 'Không Hoạt Động' trước.")
+            return
+
+        # 2. Chặn xóa chính mình
+        if str(emp_id) == str(self.view.user_info['MaNguoiDung']):
+             messagebox.showerror("Lỗi", "Bạn không thể xóa tài khoản của chính mình.")
              return
 
-        if messagebox.askyesno("Xác nhận xóa", f"Bạn có chắc muốn XÓA nhân viên:\n\n{emp_name} (ID: {emp_id})?"):
+        # 3. Cảnh báo xóa vĩnh viễn
+        if messagebox.askyesno("Xác nhận xóa vĩnh viễn", 
+                               f"CẢNH BÁO: Bạn đang xóa nhân viên '{emp_name}' (đã nghỉ việc).\n\n"
+                               "Hành động này sẽ:\n"
+                               "- Xóa toàn bộ lịch sử CHẤM CÔNG của nhân viên này.\n"
+                               "- Gỡ tên nhân viên khỏi các HÓA ĐƠN/PHIẾU NHẬP cũ (để giữ lại lịch sử doanh thu).\n\n"
+                               "Bạn có chắc chắn muốn tiếp tục?"):
             try:
-                result = self.db.execute_query("DELETE FROM NguoiDung WHERE MaNguoiDung = %s", (emp_id,))
+                # --- BƯỚC A: Xử lý dữ liệu liên quan (Tránh lỗi Foreign Key) ---
+                
+                # 1. Xóa lịch sử chấm công (Bắt buộc xóa vì nó gắn liền với nhân viên)
+                self.db.execute_query("DELETE FROM ChamCong WHERE MaNguoiDung = %s", (emp_id,))
+                self.db.execute_query("DELETE FROM ChamCong WHERE NguoiChamCong = %s", (emp_id,)) # Xóa cả log người chấm nếu có
+
+                # 2. Gỡ tên khỏi Hóa đơn & Phiếu nhập (Set NULL để không mất doanh thu)
+                self.db.execute_query("UPDATE HoaDon SET MaNguoiDung = NULL WHERE MaNguoiDung = %s", (emp_id,))
+                self.db.execute_query("UPDATE PhieuNhapKho SET MaNguoiDung = NULL WHERE MaNguoiDung = %s", (emp_id,))
+                self.db.execute_query("UPDATE LichSuBaoHanh SET NguoiXuLy = NULL WHERE NguoiXuLy = %s", (emp_id,))
+
+                # --- BƯỚC B: Xóa Nhân viên ---
+                query = "DELETE FROM NguoiDung WHERE MaNguoiDung = %s"
+                result = self.db.execute_query(query, (emp_id,))
+                
                 if result:
-                    messagebox.showinfo("Thành công", "Đã xóa nhân viên.")
-                    self.load_view(self.view.employee_tree) # Tải lại cây
-                    # Xóa thông tin khỏi panel chi tiết
+                    messagebox.showinfo("Thành công", f"Đã xóa hoàn toàn nhân viên {emp_name} và dọn dẹp dữ liệu liên quan.")
+                    
+                    # Tải lại giao diện
+                    self.load_view(self.view.employee_tree, self.view.search_entry.get())
+                    
+                    # Reset form
                     self.view.details_emp_id.config(text="ID: (Chưa chọn)")
                     self.view.details_hoten.delete(0, tk.END)
                     self.view.details_sdt.delete(0, tk.END)
                     self.view.details_email.delete(0, tk.END)
+                    self.view.details_vaitro.set('')
+                    self.view.details_trangthai.set('')
                     self.view.image_label.config(image=None) 
                     self.original_data = {}
+                    self.view.update_button.config(state="disabled")
                 else:
-                    messagebox.showerror("Lỗi", "Xóa thất bại.")
+                    messagebox.showerror("Lỗi", "Xóa thất bại (Lỗi CSDL không xác định).")
+            
             except Exception as e:
-                messagebox.showerror("Lỗi CSDL", f"Không thể xóa nhân viên này, có thể do ràng buộc dữ liệu (ví dụ: đã chấm công, lập hóa đơn).\nLỗi: {e}")
+                messagebox.showerror("Lỗi CSDL", f"Đã xảy ra lỗi khi xóa dữ liệu: {e}")
