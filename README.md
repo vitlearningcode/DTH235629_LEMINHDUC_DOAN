@@ -1,255 +1,258 @@
-# =================================================================
-# FILE: README.md
-# HƯỚNG DẪN CÀI ĐẶT VÀ SỬ DỤNG HỆ THỐNG
-# =================================================================
+=================================================================
+FILE: README.md
+HƯỚNG DẪN CÀI ĐẶT VÀ SỬ DỤNG HỆ THỐNG
+=================================================================
+HỆ THỐNG QUẢN LÝ CỬA HÀNG XE MÁY
+📋 MÔ TẢ DỰ ÁN
+Hệ thống quản lý cửa hàng xe máy phát triển bằng Python Tkinter với cơ sở dữ liệu SQL Server. Hệ thống hỗ trợ 3 vai trò người dùng với phân quyền rõ ràng:
 
-# HỆ THỐNG QUẢN LÝ CỬA HÀNG XE MÁY
+Admin (Chủ cửa hàng): Toàn quyền quản lý tất cả các chức năng
 
-## 📋 MÔ TẢ DỰ ÁN
+QuanLy (Quản lý): Chỉ xem thông tin và có quyền chấm công
 
-Hệ thống quản lý cửa hàng xe máy được phát triển bằng Python Tkinter với cơ sở dữ liệu MySQL. Hệ thống hỗ trợ 3 vai trò người dùng với phân quyền rõ ràng:
+NhanVien (Nhân viên): Lập hóa đơn bán hàng, dịch vụ sửa chữa
 
-- **Admin (Chủ cửa hàng)**: Toàn quyền quản lý tất cả các chức năng
-- **QuanLy (Quản lý)**: Chỉ xem thông tin và có quyền chấm công
-- **NhanVien (Nhân viên)**: Lập hóa đơn bán hàng, dịch vụ sửa chữa
+🎨 ĐẶC ĐIỂM GIAO DIỆN
+Màu sắc chủ đạo: Xanh da trời (#87CEEB, #4682B4, #5F9EA0)
 
-## 🎨 ĐẶC ĐIỂM GIAO DIỆN
+Thiết kế: Đơn giản, dễ dùng, thích hợp cho nhân viên phổ thông, người mới học Python
 
-- **Màu sắc chủ đạo**: Các tông màu xanh da trời (#87CEEB, #4682B4, #5F9EA0)
-- **Thiết kế**: Đơn giản, dễ sử dụng, phù hợp cho người mới học Python
-- **Responsive**: Giao diện tự động điều chỉnh theo kích thước màn hình
+Responsive: Tự động co giãn giao diện
 
-## 📦 YÊU CẦU HỆ THỐNG
+📦 YÊU CẦU HỆ THỐNG
+Phần mềm bắt buộc:
+Python 3.8+
 
-### Phần mềm cần cài đặt:
-1. **Python 3.8+** (Tải tại: https://www.python.org/downloads/)
-2. **MySQL Server 8.0+** (Tải tại: https://dev.mysql.com/downloads/mysql/)
-3. **MySQL Connector for Python**
+SQL Server 2017+ (Express hoặc bản đủ tính năng)
 
-### Thư viện Python:
-```bash
-pip install mysql-connector-python
-pip install tkinter  # Thường đã có sẵn với Python
-```
+SQL Server Management Studio (SSMS)
 
-## 🚀 HƯỚNG DẪN CÀI ĐẶT
+ODBC Driver 17 for SQL Server
 
-### Bước 1: Cài đặt MySQL Server
-1. Tải và cài đặt MySQL Server
-2. Trong quá trình cài đặt, thiết lập:
-   - Username: `root`
-   - Password: (tùy chọn của bạn)
-   - Port: `3306` (mặc định)
+Thư viện Python:
+bash
+pip install pyodbc
+pip install pillow
+pip install openpyxl
+pip install tkinter      # Thường đã có sẵn với Python mặc định
+🚀 HƯỚNG DẪN CÀI ĐẶT
+Bước 1: Cài đặt SQL Server
+Tải và cài “SQL Server” và SSMS
 
-### Bước 2: Tạo Database
-1. Mở MySQL Workbench hoặc Command Line
-2. Chạy file `database_setup.sql`:
-   ```sql
-   mysql -u root -p < database_setup.sql
-   ```
-   Hoặc copy toàn bộ nội dung file và chạy trong MySQL Workbench
+Tạo user “sa” hoặc account riêng để kết nối
 
-### Bước 3: Cấu hình kết nối
-Mở file `database_connection.py` và chỉnh sửa thông tin kết nối:
-```python
-self.host = 'localhost'
+Bước 2: Tạo Database
+Mở SSMS hoặc cmd line
+
+Chạy script database_setup.sql để tạo database và các bảng:
+
+sql
+:r database_setup.sql
+Hoặc copy toàn bộ nội dung script, dán vào SSMS rồi chạy
+
+Bước 3: Cấu hình kết nối
+Mở file database_connection.py và chỉnh thông tin:
+
+python
+self.server = 'localhost\\\\SQLEXPRESS'
 self.database = 'QUANLYCUAHANGXEMAY'
-self.user = 'root'          # Thay bằng username MySQL của bạn
-self.password = ''          # Thay bằng password MySQL của bạn
-```
-
-### Bước 4: Cài đặt thư viện
-```bash
-pip install mysql-connector-python
-```
-
-### Bước 5: Chạy chương trình
-```bash
+self.username = 'sa'                 # đổi nếu dùng username khác
+self.password = '...'                # mật khẩu SQL Server
+self.driver = 'ODBC Driver 17 for SQL Server'
+Bước 4: Cài đặt thư viện Python bắt buộc
+bash
+pip install pyodbc pillow openpyxl
+Bước 5: Chạy chương trình
+bash
 python login.py
-```
-
-## 👥 TÀI KHOẢN MẶC ĐỊNH
-
-| Vai trò | Tên đăng nhập | Mật khẩu | Quyền hạn |
-|---------|---------------|----------|-----------|
-| Admin | admin | 123456 | Toàn quyền |
-| Quản lý | quanly01 | 123456 | Xem + Chấm công |
-| Nhân viên | nhanvien01 | 123456 | Bán hàng |
-
-## 📁 CẤU TRÚC FILE
-
-```
+👥 TÀI KHOẢN MẶC ĐỊNH
+Vai trò	Tên đăng nhập	Mật khẩu	Quyền hạn
+Admin	admin	123456	Toàn quyền
+Quản lý	quanly01	123456	Xem + Chấm công
+Nhân viên	nhanvien01	123456	Bán hàng, nhập khách mới
+📁 CẤU TRÚC FILE
+text
 QuanLyCuaHangXeMay/
-│
-├── database_setup.sql          # Script tạo database
-├── database_connection.py      # Module kết nối database
+├── database_setup.sql          # Script tạo database SQL Server
+├── database_connection.py      # Module kết nối pyodbc
 ├── login.py                    # Form đăng nhập
 ├── admin_window.py             # Giao diện Admin
-├── quanly_window.py           # Giao diện Quản lý
-├── nhanvien_window.py         # Giao diện Nhân viên
-└── README.md                   # File hướng dẫn này
-```
+├── quanly_window.py            # Giao diện Quản lý
+├── nhanvien_window.py          # Giao diện Nhân viên
+├── Function/                   # Tất cả logic nghiệp vụ (Admin/NhanVien/QuanLy)
+├── README.md                   # File hướng dẫn này
+🗄️ CẤU TRÚC DATABASE
+Bảng chính:
+NguoiDung: Quản lý tài khoản + phân quyền
 
-## 🗄️ CẤU TRÚC DATABASE
+SanPham: Danh mục xe máy
 
-### Các bảng chính:
-1. **NguoiDung**: Quản lý tài khoản người dùng
-2. **SanPham**: Thông tin xe máy
-3. **PhuTung**: Phụ tùng, linh kiện
-4. **KhachHang**: Thông tin khách hàng
-5. **HoaDon**: Hóa đơn bán hàng
-6. **PhieuNhapKho**: Phiếu nhập hàng
-7. **PhieuBaoHanh**: Phiếu bảo hành
-8. **ChamCong**: Chấm công nhân viên
-9. **KhuyenMai**: Chương trình khuyến mãi
+PhuTung: Phụ tùng linh kiện
 
-### Các trigger tự động:
-- ✅ Tự động cập nhật tồn kho khi nhập hàng
-- ✅ Kiểm tra tồn kho trước khi bán (tránh số âm)
-- ✅ Tự động tính tổng tiền hóa đơn
-- ✅ Tự động tính tổng tiền phiếu nhập
+KhachHang: Thông tin khách
 
-## 🔧 CHỨC NĂNG CHI TIẾT
+HoaDon: Hóa đơn bán/phiếu bảo hành
 
-### 🔑 Class Login
-- Đăng nhập với phân quyền
-- Kiểm tra trạng thái tài khoản
-- Chuyển hướng đến giao diện phù hợp
+PhieuNhapKho: Nhập hàng kho
 
-### 👨‍💼 Class Admin (Chủ cửa hàng)
-**Toàn quyền chỉnh sửa:**
-- ✏️ Quản lý nhân viên (Thêm/Sửa/Xóa)
-- 🏍️ Quản lý sản phẩm (Thêm/Sửa/Xóa)
-- 🔧 Quản lý phụ tùng (Thêm/Sửa/Xóa)
-- 📦 Quản lý kho (Nhập/Xuất)
-- 🎁 Quản lý khuyến mãi
-- 👤 Quản lý khách hàng
-- 📄 Quản lý hóa đơn
-- ⏰ Quản lý chấm công
-- 📊 Báo cáo thống kê đầy đủ
+ChamCong: Bảng chấm công nhân viên
 
-### 👔 Class QuanLy (Quản lý)
-**Chỉ xem và chấm công:**
-- 👁️ Xem thông tin tất cả các module
-- ✅ Chấm công cho nhân viên
-- ❌ Không có quyền chỉnh sửa dữ liệu
+KhuyenMai: Chương trình khuyến mại
 
-### 👨‍💻 Class NhanVien (Nhân viên)
-**Bán hàng và dịch vụ:**
-- 🛒 Tạo hóa đơn bán xe
-- 🔧 Lập phiếu sửa chữa/bảo dưỡng
-- 👤 Thêm khách hàng mới
-- 📋 Xem lịch sử hóa đơn của mình
-- ⚠️ **Logic đồng bộ kho**: Hệ thống tự động kiểm tra tồn kho, không cho phép bán khi số lượng không đủ
+Trigger chính:
+✅ Tự động cập nhật tồn kho khi nhập/bán/sp xuất kho
 
-## 🔒 BẢO MẬT
+✅ Tự động kiểm tra số lượng tồn kho trước khi bán (không cho phép số âm)
 
-- Mật khẩu được lưu trữ ở dạng plain text (trong thực tế nên hash)
-- Phân quyền rõ ràng theo vai trò
-- Kiểm tra trạng thái tài khoản trước khi đăng nhập
+✅ Tự động update tổng tiền hóa đơn/phiếu nhập
 
-## 📊 TRIGGER VÀ RÀNG BUỘC
+🔧 CHỨC NĂNG CHI TIẾT
+🔑 Đăng nhập & Phân quyền
+Đăng nhập với kiểm tra role (Admin/QuanLy/NhanVien)
 
-### Ràng buộc dữ liệu:
-```sql
-- SoLuongTon >= 0 (không cho phép âm)
-- GiaBan > 0
-- NgayKetThuc >= NgayBatDau
-- Unique constraints trên các trường quan trọng
-```
+Trạng thái tài khoản, reset password
 
-### Trigger tự động:
-```sql
-- after_insert_nhapsanpham: Cập nhật tồn kho sau khi nhập
-- before_insert_bansanpham: Kiểm tra tồn kho trước khi bán
-- after_insert_chitiet_hoadon: Tự động tính tổng tiền hóa đơn
-```
+👨‍💼 Admin (Chủ cửa hàng)
+Quản lý nhân viên (CRUD)
 
-## 🎯 HƯỚNG DẪN SỬ DỤNG
+Quản lý sản phẩm (CRUD)
 
-### Đăng nhập lần đầu:
-1. Chạy `python login.py`
-2. Đăng nhập bằng tài khoản `admin/123456`
-3. Khám phá các chức năng
+Quản lý phụ tùng (CRUD)
 
-### Quy trình bán hàng (Nhân viên):
-1. Đăng nhập tài khoản nhân viên
-2. Nhập SĐT khách hàng (hoặc thêm mới)
-3. Chọn sản phẩm từ danh sách
-4. Thêm vào giỏ hàng
-5. Thanh toán
+Quản lý kho, nhập/xuất kho
 
-### Quy trình nhập hàng (Admin):
-1. Vào "Quản lý kho"
-2. Tạo phiếu nhập mới
-3. Chọn nhà cung cấp
-4. Thêm sản phẩm và số lượng
-5. Lưu phiếu nhập
+Quản lý khuyến mãi, khách hàng, hóa đơn, chấm công
 
-### Chấm công (Quản lý):
-1. Vào "Chấm công"
-2. Chọn ngày
-3. Chọn nhân viên
-4. Nhập giờ vào/ra
-5. Chọn trạng thái (Đi làm/Vắng mặt/Nghỉ phép/Đi trễ)
-6. Lưu
+Báo cáo, xuất dữ liệu Excel/PDF
 
-## 🐛 XỬ LÝ LỖI THƯỜNG GẶP
+👔 Quản lý (QuanLy)
+Xem thông tin tất cả module
 
-### Lỗi kết nối database:
-```
-Error: Can't connect to MySQL server
-```
-**Giải pháp**: 
-- Kiểm tra MySQL Server đã chạy chưa
-- Kiểm tra username/password trong `database_connection.py`
+Chấm công cho nhân viên
 
-### Lỗi import module:
-```
-ModuleNotFoundError: No module named 'mysql.connector'
-```
-**Giải pháp**:
-```bash
-pip install mysql-connector-python
-```
+👨‍💻 Nhân viên (NhanVien)
+Lập hóa đơn bán hàng
 
-### Lỗi trigger:
-```
-Error: Số lượng tồn kho không đủ để bán!
-```
-**Giải pháp**: Đây là tính năng bảo vệ, cần nhập thêm hàng trước khi bán
+Thêm khách mới
 
-## 📝 GHI CHÚ
+Lập phiếu sửa chữa/bảo dưỡng
 
-- Code được viết đơn giản, dễ hiểu cho người mới học Python
-- Không sử dụng các kỹ thuật tối ưu phức tạp
-- Có thể mở rộng thêm nhiều chức năng khác
-- Database đã có sẵn dữ liệu mẫu để test
+Xem lịch sử hóa đơn cá nhân
 
-## 🔄 PHÁT TRIỂN THÊM
+Logic kho: tự động kiểm tra tồn kho, không cho phép bán khi hết hàng
 
-Các chức năng có thể mở rộng:
-- [ ] Báo cáo thống kê chi tiết hơn (biểu đồ)
-- [ ] In hóa đơn PDF
-- [ ] Backup/Restore database
-- [ ] Gửi email thông báo
-- [ ] Quản lý lương nhân viên
-- [ ] Tích hợp thanh toán online
+🔒 BẢO MẬT
+Mật khẩu lưu plain text (khuyến nghị mã hoá hash)
 
-## 📞 HỖ TRỢ
+Phân quyền rõ ràng cho các vai trò
 
-Nếu gặp vấn đề trong quá trình sử dụng:
-1. Kiểm tra lại các bước cài đặt
-2. Đảm bảo MySQL Server đang chạy
-3. Kiểm tra thông tin kết nối database
-4. Xem log lỗi trong console
+Kiểm tra trạng thái active/trạng thái tài khoản
 
-## 📚 TÀI LIỆU THAM KHẢO
+📊 RÀNG BUỘC & TRIGGER DỮ LIỆU
+Ràng buộc SQL:
+sql
+- SoLuongTon >= 0           -- Không cho phép tồn kho âm
+- GiaBan > 0                -- Giá trị dương
+- NgayKetThuc >= NgayBatDau -- Bảo hành hợp lệ
+- UNIQUE các trường chính/tài khoản/login
+Trigger mẫu:
+sql
+- trgAfterNhapSanPham: update tồn kho khi nhập hàng
+- trgBeforeBanSanPham: kiểm tra tồn kho trước khi bán
+- trgAfterInsertHoaDon: tự động tổng hợp hóa đơn
+🎯 HƯỚNG DẪN SỬ DỤNG
+Đăng nhập lần đầu:
 
-- [Python Tkinter Documentation](https://docs.python.org/3/library/tkinter.html)
-- [MySQL Documentation](https://dev.mysql.com/doc/)
-- [MySQL Connector Python](https://dev.mysql.com/doc/connector-python/en/)
+Chạy python login.py
 
----
+Đăng nhập admin / 123456
 
-**Chúc bạn thành công với đồ án! 🎉**
+Tuỳ vai trò, giao diện sẽ tự động chuyển chế độ
+
+Quy trình bán hàng (Nhân viên):
+
+Đăng nhập account Nhân viên
+
+Nhập SĐT khách hoặc thêm mới
+
+Chọn xe, phụ tùng, số lượng
+
+Thanh toán
+
+Hệ thống auto trừ tồn kho, in hóa đơn
+
+Quy trình nhập kho (Admin):
+
+Vào “Quản lý kho”
+
+Thêm phiếu nhập mới
+
+Cập nhật danh sách sản phẩm + số lượng
+
+Lưu phiếu nhập kho
+
+Chấm công (Quản lý):
+
+Chọn menu “Chấm công”
+
+Nhập ngày, nhân viên, trạng thái (đi làm/vắng mặt…)
+
+Lưu lại
+
+🐛 LỖI & GIẢI PHÁP
+Lỗi kết nối SQL Server:
+
+text
+Error: ('08001', '[08001] [Microsoft][ODBC Driver 17 for SQL Server]...')
+Kiểm tra SQL Server đã chạy, ODBC driver đã cài, connection string đúng
+
+Lỗi module pyodbc:
+
+text
+ModuleNotFoundError: No module named 'pyodbc'
+Cài lại:
+
+bash
+pip install pyodbc
+Lỗi trigger:
+
+text
+Không đủ tồn kho để bán!
+Nhập thêm hàng trước khi tạo hóa đơn bán
+
+📝 GHI CHÚ
+Code dễ hiểu, dễ bảo trì, phù hợp học sinh-sinh viên
+
+Dễ mở rộng thêm nghiệp vụ, báo cáo
+
+Database kèm dữ liệu mẫu demo
+
+🔄 PHÁT TRIỂN THÊM
+Báo cáo có biểu đồ (Matplotlib)
+
+Xuất hóa đơn, báo cáo PDF
+
+Gửi email/SMS nhắc bảo hành
+
+Backup/Restore database tự động
+
+Tích hợp thanh toán điện tử (VNPay,...)
+
+📞 HỖ TRỢ
+Nếu gặp khó khăn:
+
+Kiểm tra các bước cài đặt
+
+Kiểm tra kết nối SQL Server, ODBC còn hoạt động
+
+Kiểm tra lại account và phân quyền
+
+Đọc lỗi console, xem hướng dẫn trong README
+
+📚 TÀI LIỆU THAM KHẢO
+Python Tkinter Documentation
+
+SQL Server Documentation
+
+PyODBC Documentation
+
