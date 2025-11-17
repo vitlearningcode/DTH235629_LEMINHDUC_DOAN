@@ -204,6 +204,11 @@ class NhanVienSalesLogic:
             tien_da_tra = float(paid_str)
             if tien_da_tra < 0:
                 raise ValueError("Số tiền không được âm")
+            
+            if tien_da_tra > total:
+                messagebox.showwarning("Cảnh báo", 
+                                      f"Số tiền trả ({tien_da_tra:,.0f}) không được lớn hơn số tiền phải trả({total:,.0f})!")
+                return
                 
         except ValueError:
             messagebox.showerror("Lỗi", "Số tiền khách trả không hợp lệ! Vui lòng chỉ nhập số.")

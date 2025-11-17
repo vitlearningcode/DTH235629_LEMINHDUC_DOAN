@@ -32,13 +32,24 @@ class AdminCustomerLogic:
             customers = self.db.fetch_all(query, params)
             if customers:
                 for c in customers:
+                    # --- 1. CHUYỂN ĐỔI HIỂN THỊ (Data -> Tiếng Việt) ---
+                    raw_type = c['LoaiKhachHang']
+                    display_type = "Thông thường" # Mặc định
+                    
+                    if raw_type == 'ThanThiet':
+                        display_type = "Thân thiết"
+                    elif raw_type == 'TiemNang':
+                        display_type = "Tiềm năng"
+                    elif raw_type == 'Vip': # Dự phòng nếu có VIP
+                        display_type = "VIP"
+
                     self.view.customer_tree.insert("", tk.END, values=(
                         c['MaKhachHang'], 
                         c['HoTen'], 
                         c['SoDienThoai'], 
                         c['Email'] or "", 
                         c['DiaChi'] or "", 
-                        c['LoaiKhachHang'], 
+                        display_type,  # <-- Hiển thị tiếng Việt
                         c['NgayTao']
                     ))
         except Exception as e:
@@ -59,7 +70,8 @@ class AdminCustomerLogic:
 
         entries = {}
         
-        # Định nghĩa các trường dựa trên database_setup.sql
+        # Định nghĩa các trường
+        # Lưu ý: Combobox LoaiKhachHang dùng Tiếng Việt
         fields = [
             ("Họ Tên (*):", "HoTen", "entry", None),
             ("Số Điện Thoại (*):", "SoDienThoai", "entry", None),
@@ -68,7 +80,7 @@ class AdminCustomerLogic:
             ("CMND:", "CMND", "entry", None),
             ("Ngày Sinh (YYYY-MM-DD):", "NgaySinh", "entry", None),
             ("Giới Tính:", "GioiTinh", "combo", ['Nam', 'Nu', 'Khac']),
-            ("Loại Khách Hàng:", "LoaiKhachHang", "combo", ['ThongThuong', 'ThanThiet', 'TiemNang'])
+            ("Loại Khách Hàng:", "LoaiKhachHang", "combo", ['Thông thường', 'Thân thiết', 'Tiềm năng'])
         ]
 
         # Tạo các widget
@@ -90,9 +102,17 @@ class AdminCustomerLogic:
             elif widget_type == "combo":
                 val = tk.StringVar()
                 if is_edit:
-                    val.set(customer_data.get(key) or default[0])
+                    db_val = customer_data.get(key)
+                    
+                    # --- 2. CHUYỂN ĐỔI KHI EDIT (Data -> Tiếng Việt cho Combobox) ---
+                    if key == "LoaiKhachHang":
+                        if db_val == 'ThanThiet': val.set("Thân thiết")
+                        elif db_val == 'TiemNang': val.set("Tiềm năng")
+                        else: val.set("Thông thường")
+                    else:
+                        val.set(db_val or default[0])
                 else:
-                    val.set(default[0]) # 'Nam' hoặc 'ThongThuong'
+                    val.set(default[0]) # Mặc định là phần tử đầu tiên
 
                 combo = ttk.Combobox(container, textvariable=val, values=default, state="readonly", width=38, font=("Arial", 11))
                 combo.grid(row=i, column=1, padx=10, pady=10)
@@ -112,13 +132,19 @@ class AdminCustomerLogic:
                 # Xử lý các giá trị có thể là NULL
                 ngay_sinh = data['NgaySinh'] if data['NgaySinh'] else None
                 if ngay_sinh:
-                    # Kiểm tra định dạng ngày
-                    datetime.strptime(ngay_sinh, '%Y-%m-%d')
+                    datetime.strptime(ngay_sinh, '%Y-%m-%d') # Validate ngày
 
                 email = data['Email'] or None
                 dia_chi = data['DiaChi'] or None
                 cmnd = data['CMND'] or None
                 
+                # --- 3. CHUYỂN ĐỔI TRƯỚC KHI LƯU (Tiếng Việt -> Data) ---
+                loai_kh_db = "ThongThuong" # Mặc định
+                if data['LoaiKhachHang'] == "Thân thiết":
+                    loai_kh_db = "ThanThiet"
+                elif data['LoaiKhachHang'] == "Tiềm năng":
+                    loai_kh_db = "TiemNang"
+
                 # Chuẩn bị query
                 if is_edit:
                     query = """
@@ -129,8 +155,8 @@ class AdminCustomerLogic:
                     """
                     params = (
                         data['HoTen'], data['SoDienThoai'], email, dia_chi, cmnd,
-                        ngay_sinh, data['GioiTinh'], data['LoaiKhachHang'],
-                        customer_data['MaKhachHang'] # ID cho WHERE
+                        ngay_sinh, data['GioiTinh'], loai_kh_db, # Dùng biến đã convert
+                        customer_data['MaKhachHang']
                     )
                 else:
                     query = """
@@ -140,14 +166,14 @@ class AdminCustomerLogic:
                     """
                     params = (
                         data['HoTen'], data['SoDienThoai'], email, dia_chi, cmnd,
-                        ngay_sinh, data['GioiTinh'], data['LoaiKhachHang']
+                        ngay_sinh, data['GioiTinh'], loai_kh_db # Dùng biến đã convert
                     )
                 
                 # Thực thi
                 if self.db.execute_query(query, params):
                     messagebox.showinfo("Thành công", "Lưu thông tin khách hàng thành công!", parent=dialog)
                     dialog.destroy()
-                    self.load_customers() # Tải lại danh sách
+                    self.load_customers() 
                 else:
                     messagebox.showerror("Lỗi CSDL", "Không thể lưu khách hàng. (Có thể trùng SĐT hoặc Email).", parent=dialog)
                     
@@ -194,7 +220,7 @@ class AdminCustomerLogic:
         customer_id = item['values'][0]
         customer_name = item['values'][1]
 
-        # Kiểm tra ràng buộc khóa ngoại (MaKhachHang trong HoaDon và PhieuBaoHanh)
+        # Kiểm tra ràng buộc khóa ngoại
         check_hd = self.db.fetch_one("SELECT COUNT(*) as total FROM HoaDon WHERE MaKhachHang = %s", (customer_id,))
         check_bh = self.db.fetch_one("SELECT COUNT(*) as total FROM PhieuBaoHanh WHERE MaKhachHang = %s", (customer_id,))
 

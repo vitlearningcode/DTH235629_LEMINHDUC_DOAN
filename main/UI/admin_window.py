@@ -1065,22 +1065,31 @@ class Admin:
             fg="#003366"
         ).pack(pady=10)
         
-        # --- KHUNG TÌM KIẾM ---
+        # --- KHUNG TÌM KIẾM & CHỨC NĂNG ---
         search_frame = tk.Frame(self.content_frame, bg=self.bg_color)
         search_frame.pack(pady=10, fill=tk.X, padx=20)
         
+        # Ô tìm kiếm
         tk.Label(search_frame, text="Tìm (Tên KH, SĐT, Tên Xe):", bg=self.bg_color, font=("Arial", 11)).pack(side=tk.LEFT, padx=(0, 5))
         search_entry = tk.Entry(search_frame, font=("Arial", 11), width=30)
         search_entry.pack(side=tk.LEFT, padx=5, ipady=4)
         
+        # Nút Tìm kiếm
         tk.Button(
             search_frame, text="🔍 Tìm", font=("Arial", 10, "bold"), bg=self.btn_color, fg="white", 
             command=lambda: self.warranty_logic.load_all_warranties(search_entry.get())
         ).pack(side=tk.LEFT, padx=5, ipady=4)
         
+        # Nút Tải lại
         tk.Button(
             search_frame, text="🔄 Tải lại", font=("Arial", 10, "bold"), bg="#17a2b8", fg="white",
             command=lambda: (search_entry.delete(0, tk.END), self.warranty_logic.load_all_warranties())
+        ).pack(side=tk.LEFT, padx=5, ipady=4)
+
+        # === [MỚI] NÚT CHỈNH SỬA BẢO HÀNH ===
+        tk.Button(
+            search_frame, text="✏️ Sửa hạn BH", font=("Arial", 10, "bold"), bg="#ffc107", fg="black",
+            command=self.warranty_logic.edit_warranty
         ).pack(side=tk.LEFT, padx=5, ipady=4)
 
         # --- KHUNG NỘI DUNG CHIA ĐÔI ---
@@ -1095,9 +1104,12 @@ class Admin:
                                        font=("Arial", 12, "bold"), bg="white", padx=10, pady=10)
         warranty_frame.pack(fill=tk.BOTH, expand=True)
         
+        # Treeview Phiếu Bảo Hành
         cols_warranty = ("ID", "Khách Hàng", "SĐT", "Tên Xe", "Từ Ngày", "Đến Ngày", "Trạng Thái")
         self.warranty_tree = ttk.Treeview(warranty_frame, columns=cols_warranty, show="headings", height=15)
-        for col in cols_warranty: self.warranty_tree.heading(col, text=col)
+        
+        for col in cols_warranty: 
+            self.warranty_tree.heading(col, text=col)
         
         self.warranty_tree.column("ID", width=40, anchor="center")
         self.warranty_tree.column("Khách Hàng", width=150)
@@ -1105,7 +1117,7 @@ class Admin:
         self.warranty_tree.column("Tên Xe", width=150)
         self.warranty_tree.column("Từ Ngày", width=90, anchor="center")
         self.warranty_tree.column("Đến Ngày", width=90, anchor="center")
-        self.warranty_tree.column("Trạng Thái", width=90, anchor="center")
+        self.warranty_tree.column("Trạng Thái", width=110, anchor="center") # Cột trạng thái mới
         
         self.warranty_tree.bind("<<TreeviewSelect>>", self.warranty_logic.on_warranty_select)
         
@@ -1116,11 +1128,11 @@ class Admin:
         
         # Nút xóa Phiếu Bảo Hành
         tk.Button(
-            left_frame, text="🗑️ Xóa Phiếu Bảo Hành (Bên trái)", font=("Arial", 10, "bold"), bg="#dc3545", fg="white",
+            left_frame, text="🗑️ Xóa Phiếu Bảo Hành", font=("Arial", 10, "bold"), bg="#dc3545", fg="white",
             command=self.warranty_logic.delete_warranty_entry
         ).pack(pady=10)
 
-        # --- CỘT PHẢI: LỊCH SỬ SỬA CHỮA ---
+        # --- CỘT PHẢI: LỊCH SỬ SỬA CHỮA (Giữ nguyên) ---
         right_frame = tk.Frame(main_frame, bg=self.bg_color)
         right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
         
@@ -1151,7 +1163,7 @@ class Admin:
 
         # Nút xóa Lịch Sử Sửa Chữa
         tk.Button(
-            right_frame, text="🗑️ Xóa Lịch Sử Sửa Chữa (Bên phải)", font=("Arial", 10, "bold"), bg="#ffc107", fg="black",
+            right_frame, text="🗑️ Xóa Lịch Sử", font=("Arial", 10, "bold"), bg="#ffc107", fg="black",
             command=self.warranty_logic.delete_history_entry
         ).pack(pady=10)
         
