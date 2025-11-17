@@ -1,5 +1,7 @@
-# main/Function/function_Admin/admin_product_logic.py
-# PHIÊN BẢN NÂNG CẤP: Kết hợp logic CRUD của Admin và logic Panel của QuanLy
+# =================================================================
+# FILE: main/Function/function_Admin/admin_product_logic.py
+# UPDATE: CHẾ ĐỘ ADMIN - CHO PHÉP XÓA CƯỠNG CHẾ DỮ LIỆU CŨ
+# =================================================================
 
 import tkinter as tk
 from tkinter import messagebox, ttk, filedialog
@@ -18,34 +20,58 @@ class AdminProductLogic:
         if not os.path.exists(self.resource_path):
             os.makedirs(self.resource_path)
             
-        # Biến đệm (Lấy từ logic của QuanLy)
+        # Biến đệm
         self.original_data = {}
         self.new_image_path = None
 
-        # Biến đệm (Lấy từ logic gốc của Admin, dùng cho popup Thêm)
+        # Dữ liệu danh mục/hãng
         self.categories = {} 
         self.brands = {}     
         self.categories_inv = {}
         self.brands_inv = {}
         
-        # Tải dữ liệu cho combobox (cả panel và popup)
+        # Khởi tạo status_dict
+        self.status_dict = self._load_statuses()
+
+        # Tải dữ liệu danh mục/hãng
         self._load_categories_and_brands()
         
-        # Cập nhật combobox trên panel (nếu chúng đã được vẽ)
+        # Bind event
         try:
-            self.view.details_hang.config(values=list(self.brands.keys()))
-            self.view.details_loai.config(values=list(self.categories.keys()))
+            if hasattr(self.view, 'details_trangthai'):
+                self.view.details_trangthai.bind("<<ComboboxSelected>>", self.check_for_changes)
+            if hasattr(self.view, 'details_hang'):
+                self.view.details_hang.bind("<<ComboboxSelected>>", self.check_for_changes)
+            if hasattr(self.view, 'details_loai'):
+                self.view.details_loai.bind("<<ComboboxSelected>>", self.check_for_changes)
         except:
-            pass # Lỗi nếu UI chưa được vẽ
+            pass
+
+    def _load_statuses(self):
+        """Định nghĩa trạng thái (ConHang / HetHang)"""
+        return {
+            "Còn Hàng": "ConHang",
+            "Hết Hàng": "HetHang"
+        }
+
+    def update_combobox_data(self):
+        try:
+            if hasattr(self.view, 'details_hang'):
+                self.view.details_hang.config(values=list(self.brands.keys()))
+            if hasattr(self.view, 'details_loai'):
+                self.view.details_loai.config(values=list(self.categories.keys()))
+            if hasattr(self.view, 'details_trangthai'):
+                self.view.details_trangthai.config(values=list(self.status_dict.keys()))
+        except Exception as e:
+            print(f"Lỗi cập nhật Combobox: {e}")
 
     def load_products(self, tree, keyword=None):
-        """Tải danh sách sản phẩm (Logic từ QuanLy, đổi tên load_view -> load_products)"""
         for item in tree.get_children(): 
             tree.delete(item)
             
         query = """
             SELECT sp.MaSanPham, sp.TenSanPham, hx.TenHangXe, lx.TenLoaiXe,
-                   sp.GiaBan, sp.SoLuongTon
+                   sp.GiaBan, sp.SoLuongTon, sp.TrangThai
             FROM SanPham sp
             LEFT JOIN HangXe hx ON sp.MaHangXe = hx.MaHangXe
             LEFT JOIN LoaiXe lx ON sp.MaLoaiXe = lx.MaLoaiXe
@@ -55,81 +81,94 @@ class AdminProductLogic:
             query += " WHERE sp.TenSanPham LIKE %s"
             params.append(f"%{keyword}%")
             
-        query += " ORDER BY sp.MaSanPham"
+        query += " ORDER BY sp.MaSanPham DESC"
         
         products = self.db.fetch_all(query, params)
         if products:
             for p in products:
+                db_status = p['TrangThai']
+                display_status = next((k for k, v in self.status_dict.items() if v == db_status), db_status)
+
                 tree.insert("", tk.END, values=(
                     p['MaSanPham'], 
                     p['TenSanPham'], 
                     p['TenHangXe'] or "N/A", 
                     p['TenLoaiXe'] or "N/A", 
-                    f"{p['GiaBan']:,.0f} VNĐ", # Format tiền
-                    p['SoLuongTon']
+                    f"{p['GiaBan']:,.0f}", 
+                    p['SoLuongTon'],
+                    display_status
                 ))
 
-    # --- CÁC HÀM LOGIC CHO PANEL (LẤY TỪ QUANLY_PRODUCT_VIEW_LOGIC) ---
-
     def on_product_select(self, event):
-        """Khi click vào sản phẩm trên cây, hiển thị chi tiết lên panel"""
         try:
-            selected_item = self.view.product_tree.selection()[0]
-            values = self.view.product_tree.item(selected_item, 'values')
-            if not values: return
+            selected_item = self.view.product_tree.selection()
+            if not selected_item: return
             
+            values = self.view.product_tree.item(selected_item[0], 'values')
             product_id = values[0]
+            
             data = self.db.fetch_one("SELECT * FROM SanPham WHERE MaSanPham = %s", (product_id,))
-            if not data:
-                messagebox.showerror("Lỗi", "Không tìm thấy sản phẩm.")
-                return
+            if not data: return
                 
             self.original_data = data
             self.new_image_path = None
             
             self.load_product_image(product_id)
+            
             self.view.details_product_id.config(text=f"Mã: {data['MaSanPham']}")
             self.view.details_name.delete(0, tk.END)
             self.view.details_name.insert(0, data['TenSanPham'])
             self.view.details_price.delete(0, tk.END)
-            self.view.details_price.insert(0, str(data['GiaBan'] or 0))
+            self.view.details_price.insert(0, f"{int(data['GiaBan'])}")
             self.view.details_stock.delete(0, tk.END)
-            self.view.details_stock.insert(0, str(data['SoLuongTon'] or 0))
+            self.view.details_stock.insert(0, str(data['SoLuongTon']))
             
-            # Dùng dict đã tải trong __init__ để set giá trị
             self.view.details_hang.set(self.brands_inv.get(data['MaHangXe'], ""))
             self.view.details_loai.set(self.categories_inv.get(data['MaLoaiXe'], ""))
             
-            self.view.update_button.config(state="disabled")
-        except IndexError:
-            pass
+            current_code = data.get('TrangThai', '')
+            status_text = next((k for k, v in self.status_dict.items() if v == current_code), "")
+            self.view.details_trangthai.set(status_text)
+            
+            self.view.update_button.config(state="disabled", bg="#cccccc")
+
         except Exception as e:
-            messagebox.showerror("Lỗi", f"Không thể tải chi tiết: {e}")
+            print(f"Lỗi on_product_select: {e}")
 
     def load_product_image(self, product_id, image_path=None):
-        """Tải ảnh cho panel"""
         try:
+            # 1. Xác định đường dẫn ảnh
             if image_path is None:
                 image_path = os.path.join(self.resource_path, f"{product_id}.png")
+            
+            # 2. Xử lý ảnh (Tồn tại hoặc tạo ảnh rỗng)
             if not os.path.exists(image_path):
-                image_path = os.path.join(self.resource_path, "default_product.png")
-            if not os.path.exists(image_path):
-                img = Image.new('RGB', (150, 150), color='grey')
-                img.save(image_path)
-                
-            img = Image.open(image_path)
+                img = Image.new('RGB', (150, 150), color='#e1e1e1') # Ảnh xám mặc định
+            else:
+                img = Image.open(image_path)
+            
+            # 3. Resize ảnh cho đẹp
             img = img.resize((150, 150), Image.Resampling.LANCZOS)
             self.view.product_photo = ImageTk.PhotoImage(img)
-            self.view.product_image_label.config(image=self.view.product_photo)
+            
+            # --- [FIX] TỰ ĐỘNG TÌM WIDGET ẢNH TRONG VIEW ---
+            # Kiểm tra xem View đang đặt tên Label ảnh là gì để gán cho đúng
+            if hasattr(self.view, 'product_image_label'):
+                self.view.product_image_label.config(image=self.view.product_photo, text="")
+            elif hasattr(self.view, 'image_label'):
+                self.view.image_label.config(image=self.view.product_photo, text="")
+            else:
+                print("⚠️ CẢNH BÁO: Không tìm thấy Label hiển thị ảnh trong View (kiểm tra lại tên biến trong login.py)")
+            # ------------------------------------------------
+            
         except Exception as e:
-            print(f"Lỗi tải ảnh sản phẩm: {e}")
+            print(f"Lỗi tải ảnh: {e}")
 
     def upload_image(self):
-        """Tải ảnh lên cho panel"""
         try:
             file_path = filedialog.askopenfilename(
                 title="Chọn ảnh sản phẩm",
-                filetypes=[("Image Files", "*.png *.jpg *.jpeg *.bmp *.gif")]
+                filetypes=[("Image Files", "*.png *.jpg *.jpeg")]
             )
             if not file_path: return
             
@@ -140,84 +179,153 @@ class AdminProductLogic:
             messagebox.showerror("Lỗi", f"Không thể mở ảnh: {e}")
 
     def check_for_changes(self, event=None):
-        """Kiểm tra thay đổi trên panel để bật/tắt nút Cập Nhật"""
         if not self.original_data: return
         is_changed = False
         
-        if self.new_image_path is not None: is_changed = True
-        if self.view.details_name.get() != self.original_data.get('TenSanPham', ""): is_changed = True
-        if self.view.details_price.get() != str(self.original_data.get('GiaBan', "")): is_changed = True
-        if self.view.details_stock.get() != str(self.original_data.get('SoLuongTon', "")): is_changed = True
-        if self.brands.get(self.view.details_hang.get()) != self.original_data.get('MaHangXe', ""): is_changed = True
-        if self.categories.get(self.view.details_loai.get()) != self.original_data.get('MaLoaiXe', ""): is_changed = True
+        if self.new_image_path: is_changed = True
+        if self.view.details_name.get().strip() != str(self.original_data.get('TenSanPham', "")): is_changed = True
+        
+        current_price = self.view.details_price.get().replace(",", "").replace(".", "")
+        if current_price != str(int(self.original_data.get('GiaBan', 0))): is_changed = True
             
-        self.view.update_button.config(
-            state="normal" if is_changed else "disabled",
-            cursor="hand2" if is_changed else ""
-        )
+        if self.view.details_stock.get().strip() != str(self.original_data.get('SoLuongTon', "")): is_changed = True
+        
+        current_hang_id = self.brands.get(self.view.details_hang.get().strip())
+        if current_hang_id != self.original_data.get('MaHangXe'): is_changed = True
+        
+        current_loai_id = self.categories.get(self.view.details_loai.get().strip())
+        if current_loai_id != self.original_data.get('MaLoaiXe'): is_changed = True
+        
+        ui_status_text = self.view.details_trangthai.get().strip()
+        ui_status_code = self.status_dict.get(ui_status_text)
+        if ui_status_code != self.original_data.get('TrangThai'): is_changed = True
+
+        if is_changed:
+            self.view.update_button.config(state="normal", bg="#007bff")
+        else:
+            self.view.update_button.config(state="disabled", bg="#cccccc")
 
     def update_product(self):
-        """Cập nhật sản phẩm từ panel (Thay thế cho edit_product)"""
-        if not self.original_data:
-            messagebox.showerror("Lỗi", "Không có sản phẩm nào được chọn.")
-            return
-            
-        product_id = self.original_data['MaSanPham']
+        if not self.original_data: return
         
-        # Lấy dữ liệu từ panel
-        new_name = self.view.details_name.get().strip()
-        new_price_str = self.view.details_price.get().replace(",", "")
-        new_stock_str = self.view.details_stock.get()
-        new_hang_id = self.brands.get(self.view.details_hang.get())
-        new_loai_id = self.categories.get(self.view.details_loai.get())
+        product_id = self.original_data['MaSanPham']
+        name = self.view.details_name.get().strip()
+        price_str = self.view.details_price.get().replace(",", "")
+        stock_str = self.view.details_stock.get().strip()
+        
+        ma_hang = self.brands.get(self.view.details_hang.get().strip())
+        ma_loai = self.categories.get(self.view.details_loai.get().strip())
+        trang_thai_text = self.view.details_trangthai.get().strip()
+        trang_thai_code = self.status_dict.get(trang_thai_text)
 
-        if not new_name or not new_hang_id or not new_loai_id:
-            messagebox.showwarning("Thiếu thông tin", "Tên, Hãng, và Loại không được để trống.")
+        if not name or not ma_hang or not ma_loai or not trang_thai_code:
+            messagebox.showwarning("Thiếu thông tin", "Vui lòng nhập đầy đủ thông tin.")
             return
             
         try:
-            new_price = float(new_price_str)
-            new_stock = int(new_stock_str)
-            if new_price <= 0: raise ValueError("Giá bán phải dương")
-        except ValueError:
-            messagebox.showerror("Lỗi nhập liệu", "Giá bán và Tồn kho phải là SỐ hợp lệ (Giá > 0).")
+            price = float(price_str)
+            stock = int(stock_str)
+            if price < 0 or stock < 0: raise ValueError()
+        except:
+            messagebox.showerror("Lỗi nhập liệu", "Giá và Tồn kho phải là số dương.")
             return
-            
-        # 1. Lưu ảnh (nếu có ảnh mới)
-        try:
-            if self.new_image_path:
-                target_path = os.path.join(self.resource_path, f"{product_id}.png")
+
+        if self.new_image_path:
+            try:
                 img = Image.open(self.new_image_path)
-                img.save(target_path, "PNG")
-                self.new_image_path = None
-        except Exception as e:
-            messagebox.showerror("Lỗi Lưu Ảnh", f"Không thể lưu ảnh mới: {e}")
-            
-        # 2. Cập nhật CSDL
-        try:
-            query = """
-                UPDATE SanPham
-                SET TenSanPham = %s, GiaBan = %s, SoLuongTon = %s, MaHangXe = %s, MaLoaiXe = %s, NgayCapNhat = GETDATE()
-                WHERE MaSanPham = %s
-            """
-            params = (new_name, new_price, new_stock, new_hang_id, new_loai_id, product_id)
-            result = self.db.execute_query(query, params)
-            
-            if result:
-                messagebox.showinfo("Thành công", "Cập nhật thông tin sản phẩm thành công.")
-                self.load_products(self.view.product_tree, self.view.search_entry.get())
-                self.view.update_button.config(state="disabled")
-                # Tải lại dữ liệu gốc
-                self.original_data = self.db.fetch_one("SELECT * FROM SanPham WHERE MaSanPham = %s", (product_id,))
-            else:
-                messagebox.showerror("Lỗi", "Cập nhật CSDL thất bại.")
-        except Exception as e:
-            messagebox.showerror("Lỗi CSDL", f"Lỗi: {e}")
+                save_path = os.path.join(self.resource_path, f"{product_id}.png")
+                img.save(save_path, "PNG")
+            except Exception as e:
+                messagebox.showerror("Lỗi ảnh", f"Không lưu được ảnh: {e}")
 
-    # --- CÁC HÀM LOGIC GỐC CỦA ADMIN (THÊM, XÓA, POPUP) ---
+        query = """
+            UPDATE SanPham
+            SET TenSanPham=%s, GiaBan=%s, SoLuongTon=%s, MaHangXe=%s, MaLoaiXe=%s, TrangThai=%s, NgayCapNhat=GETDATE()
+            WHERE MaSanPham=%s
+        """
+        params = (name, price, stock, ma_hang, ma_loai, trang_thai_code, product_id)
+        
+        if self.db.execute_query(query, params):
+            messagebox.showinfo("Thành công", "Đã cập nhật sản phẩm!")
+            self.load_products(self.view.product_tree)
+            self.view.details_product_id.config(text="Mã: (Chưa chọn)")
+            self.view.details_name.delete(0, tk.END)
+            self.view.details_price.delete(0, tk.END)
+            self.view.details_stock.delete(0, tk.END)
+            self.view.update_button.config(state="disabled", bg="#cccccc")
+            self.original_data = {}
+        else:
+            messagebox.showerror("Lỗi", "Cập nhật thất bại.")
+
+    def add_product(self):
+        self._show_product_dialog(None)
+
+    def delete_product(self):
+        """
+        XÓA SẢN PHẨM (Logic An Toàn):
+        1. Kiểm tra trạng thái: Phải là 'HetHang' mới cho xóa. Nếu 'ConHang' -> Chặn.
+        2. Thực hiện xóa vĩnh viễn (Do Database đã được xử lý để giữ tên sản phẩm trong lịch sử).
+        """
+        selected = self.view.product_tree.selection()
+        if not selected:
+            messagebox.showwarning("Chọn dòng", "Vui lòng chọn sản phẩm cần xóa.")
+            return
+            
+        values = self.view.product_tree.item(selected[0], 'values')
+        p_id = values[0]
+        p_name = values[1]
+
+        # --- BƯỚC 1: KIỂM TRA TRẠNG THÁI TRƯỚC KHI XÓA ---
+        curr_db = self.db.fetch_one("SELECT TrangThai FROM SanPham WHERE MaSanPham=%s", (p_id,))
+        
+        # Nếu không tìm thấy sản phẩm hoặc trạng thái KHÁC 'HetHang' -> Cấm xóa
+        if curr_db and curr_db['TrangThai'] != 'HetHang':
+            # Dịch mã trạng thái sang tiếng Việt cho dễ hiểu
+            status_vn = "Còn Hàng" if curr_db['TrangThai'] == 'ConHang' else curr_db['TrangThai']
+            
+            messagebox.showwarning("Không thể xóa", 
+                                   f"Sản phẩm '{p_name}' đang ở trạng thái: {status_vn}.\n\n"
+                                   "Quy định: Bạn phải cập nhật trạng thái về 'Hết Hàng' trước khi muốn xóa nó.")
+            return
+        # --------------------------------------------------
+
+        # --- BƯỚC 2: XÁC NHẬN VÀ XÓA (Khi đã thỏa điều kiện Hết Hàng) ---
+        if messagebox.askyesno("Xác nhận XÓA", 
+                               f"Sản phẩm '{p_name}' đã Hết Hàng.\n"
+                               f"Bạn có chắc chắn muốn XÓA VĨNH VIỄN khỏi hệ thống?\n\n"
+                               "(Lưu ý: Lịch sử hóa đơn và bảo hành cũ vẫn sẽ được giữ lại)"):
+            try:
+                query = "DELETE FROM SanPham WHERE MaSanPham = %s"
+                
+                if self.db.execute_query(query, (p_id,)):
+                    messagebox.showinfo("Thành công", f"Đã xóa sản phẩm '{p_name}'.")
+                    
+                    # Xóa ảnh
+                    try:
+                        img_path = os.path.join(self.resource_path, f"{p_id}.png")
+                        if os.path.exists(img_path):
+                            os.remove(img_path)
+                    except:
+                        pass
+                        
+                    self._reset_ui_after_delete()
+                else:
+                    messagebox.showerror("Lỗi", "Xóa thất bại. Vui lòng kiểm tra lại kết nối.")
+                    
+            except Exception as e:
+                messagebox.showerror("Lỗi hệ thống", f"Chi tiết lỗi: {e}")
+
+    def _reset_ui_after_delete(self):
+        """Làm mới giao diện sau khi xóa"""
+        self.load_products(self.view.product_tree)
+        self.original_data = {}
+        self.view.details_name.delete(0, tk.END)
+        self.view.details_price.delete(0, tk.END)
+        self.view.details_stock.delete(0, tk.END)
+        self.view.details_product_id.config(text="Mã: (Chưa chọn)")
+        self.view.update_button.config(state="disabled", bg="#cccccc")
 
     def _load_categories_and_brands(self):
-        """Hàm nội bộ: Tải dữ liệu cho Combobox (Dùng cho cả panel và popup)"""
         try:
             cats = self.db.fetch_all("SELECT MaLoaiXe, TenLoaiXe FROM LoaiXe")
             self.categories = {c['TenLoaiXe']: c['MaLoaiXe'] for c in cats}
@@ -226,155 +334,130 @@ class AdminProductLogic:
             brs = self.db.fetch_all("SELECT MaHangXe, TenHangXe FROM HangXe")
             self.brands = {b['TenHangXe']: b['MaHangXe'] for b in brs}
             self.brands_inv = {b['MaHangXe']: b['TenHangXe'] for b in brs}
-            return True
-        except Exception as e:
-            messagebox.showerror("Lỗi CSDL", f"Không thể tải danh mục hoặc hãng xe: {e}")
-            return False
+        except:
+            pass
 
     def _show_product_dialog(self, product_data=None):
-        """Hàm nội bộ: Hiển thị cửa sổ Toplevel (CHỈ DÙNG CHO THÊM MỚI)"""
-        
-        # (Không cần tải lại categories/brands vì đã tải trong __init__)
-
-        is_edit = product_data is not None # Logic này giờ chỉ dùng cho Thêm (is_edit=False)
-        
+        # Tạo cửa sổ popup (Toplevel)
         dialog = tk.Toplevel(self.view.window)
         dialog.title("Thêm Sản Phẩm Mới")
+        dialog.geometry("600x450")
         dialog.resizable(False, False)
-        dialog.grab_set()
-
-        container = tk.Frame(dialog, padx=20, pady=20)
-        container.pack(fill="none", expand=False)
-
-        entries = {}
         
-        fields = [
-            ("Tên Sản Phẩm:", "TenSanPham", "entry", None),
-            ("Hãng Xe:", "MaHangXe", "combo", list(self.brands.keys())),
-            ("Loại Xe:", "MaLoaiXe", "combo", list(self.categories.keys())),
-            ("Phân Khối (CC):", "PhanKhoi", "entry", None),
-            ("Màu Sắc:", "MauSac", "entry", None),
-            ("Năm Sản Xuất:", "NamSanXuat", "entry", None),
-            ("Giá Bán:", "GiaBan", "entry", None),
-            ("Số Lượng Tồn:", "SoLuongTon", "entry", 0), # Mặc định là 0
-            ("Thời Gian Bảo Hành (tháng):", "ThoiGianBaoHanh", "entry", 12),
-            ("Trạng Thái:", "TrangThai", "combo", ['ConHang', 'HetHang', 'NgungKinhDoanh']),
-            ("Mô Tả:", "MoTa", "text", None)
-        ]
+        # Biến lưu đường dẫn ảnh tạm thời cho popup
+        self.temp_image_path = None
 
-        for i, (text, key, widget_type, default) in enumerate(fields):
-            tk.Label(container, text=text, font=("Arial", 11)).grid(row=i, column=0, padx=10, pady=10, sticky="e")
+        # --- Bố cục giao diện (Grid Layout) ---
+        # Cột 1: Ảnh sản phẩm
+        frame_img = tk.Frame(dialog, width=200, height=400)
+        frame_img.pack(side="left", fill="y", padx=10, pady=10)
+        
+        lbl_img = tk.Label(frame_img, text="Chưa có ảnh", bg="#e1e1e1", width=20, height=10)
+        lbl_img.pack(pady=10)
+        
+        btn_choose_img = ttk.Button(frame_img, text="Chọn Ảnh", command=lambda: self._select_image_popup(lbl_img))
+        btn_choose_img.pack()
+
+        # Cột 2: Thông tin nhập liệu
+        frame_info = tk.Frame(dialog)
+        frame_info.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+
+        # Hàm tạo dòng nhập liệu nhanh
+        def create_entry(label_text, row):
+            tk.Label(frame_info, text=label_text, font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+            entry = ttk.Entry(frame_info, font=("Arial", 10), width=30)
+            entry.grid(row=row, column=1, pady=5, padx=5)
+            return entry
+
+        def create_combo(label_text, values, row):
+            tk.Label(frame_info, text=label_text, font=("Arial", 10, "bold")).grid(row=row, column=0, sticky="w", pady=5)
+            combo = ttk.Combobox(frame_info, values=values, font=("Arial", 10), width=28, state="readonly")
+            combo.grid(row=row, column=1, pady=5, padx=5)
+            return combo
+
+        # Các trường nhập liệu
+        entry_name = create_entry("Tên Sản Phẩm:", 0)
+        
+        cb_hang = create_combo("Hãng Xe:", list(self.brands.keys()), 1)
+        cb_loai = create_combo("Loại Xe:", list(self.categories.keys()), 2)
+        
+        entry_price = create_entry("Giá Bán (VNĐ):", 3)
+        entry_stock = create_entry("Tồn Kho:", 4)
+        
+        # Nút Lưu và Hủy
+        frame_btn = tk.Frame(frame_info)
+        frame_btn.grid(row=6, column=0, columnspan=2, pady=20)
+        
+        def save_action():
+            # 1. Lấy dữ liệu từ form
+            name = entry_name.get().strip()
+            brand_name = cb_hang.get()
+            cat_name = cb_loai.get()
+            price_str = entry_price.get().strip()
+            stock_str = entry_stock.get().strip()
             
-            if widget_type == "entry":
-                val = default if default is not None else ""
-                entry = tk.Entry(container, font=("Arial", 11), width=40)
-                entry.grid(row=i, column=1, padx=10, pady=10)
-                entry.insert(0, str(val))
-                entries[key] = entry
-                
-            elif widget_type == "combo":
-                val = tk.StringVar()
-                val.set(default[0]) # Lấy giá trị đầu tiên
-                combo = ttk.Combobox(container, textvariable=val, values=default, state="readonly", width=38, font=("Arial", 11))
-                combo.grid(row=i, column=1, padx=10, pady=10)
-                entries[key] = combo
-                
-            elif widget_type == "text":
-                val = ""
-                text_widget = tk.Text(container, font=("Arial", 11), width=40, height=4, relief="solid", borderwidth=1)
-                text_widget.grid(row=i, column=1, padx=10, pady=10)
-                text_widget.insert("1.0", val)
-                entries[key] = text_widget
+            # 2. Validate (Kiểm tra dữ liệu)
+            if not name or not brand_name or not cat_name or not price_str or not stock_str:
+                messagebox.showwarning("Thiếu thông tin", "Vui lòng điền đầy đủ các trường.", parent=dialog)
+                return
 
-        def save():
             try:
-                data = {}
-                for key, widget in entries.items():
-                    if isinstance(widget, tk.Text):
-                        data[key] = widget.get("1.0", tk.END).strip() or None
-                    else:
-                        data[key] = widget.get().strip()
-                
-                if not data['TenSanPham'] or not data['GiaBan'] or not data['SoLuongTon']:
-                    messagebox.showwarning("Thiếu thông tin", "Tên, Giá Bán, và Số Lượng Tồn là bắt buộc.", parent=dialog)
-                    return
-                
-                ma_hang_xe = self.brands.get(data['MaHangXe'])
-                ma_loai_xe = self.categories.get(data['MaLoaiXe'])
-                
-                gia_ban = float(data['GiaBan'])
-                so_luong_ton = int(data['SoLuongTon'])
-                phan_khoi = int(data['PhanKhoi']) if data['PhanKhoi'] else None
-                nam_sx = int(data['NamSanXuat']) if data['NamSanXuat'] else None
-                bao_hanh = int(data['ThoiGianBaoHanh']) if data['ThoiGianBaoHanh'] else 12
+                price = float(price_str)
+                stock = int(stock_str)
+                if price < 0 or stock < 0: raise ValueError
+            except:
+                messagebox.showerror("Lỗi nhập liệu", "Giá và Tồn kho phải là số dương.", parent=dialog)
+                return
 
-                # CHỈ CÓ LOGIC INSERT (VÌ EDIT ĐÃ CHUYỂN QUA PANEL)
+            # 3. Lấy ID từ tên Hãng/Loại
+            ma_hang = self.brands.get(brand_name)
+            ma_loai = self.categories.get(cat_name)
+
+            # 4. Thực hiện Insert vào Database
+            try:
                 query = """
-                    INSERT INTO SanPham 
-                    (TenSanPham, MaLoaiXe, MaHangXe, PhanKhoi, MauSac, NamSanXuat, GiaBan, SoLuongTon, MoTa, ThoiGianBaoHanh, TrangThai)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO SanPham (TenSanPham, MaHangXe, MaLoaiXe, GiaBan, SoLuongTon, TrangThai, NgayTao, NgayCapNhat)
+                    VALUES (%s, %s, %s, %s, %s, 'ConHang', GETDATE(), GETDATE())
                 """
-                params = (
-                    data['TenSanPham'], ma_loai_xe, ma_hang_xe, phan_khoi, data['MauSac'] or None, nam_sx,
-                    gia_ban, so_luong_ton, data['MoTa'], bao_hanh, data['TrangThai']
-                )
+                params = (name, ma_hang, ma_loai, price, stock)
                 
                 if self.db.execute_query(query, params):
-                    messagebox.showinfo("Thành công", "Thêm sản phẩm thành công!", parent=dialog)
-                    dialog.destroy()
-                    self.load_products(self.view.product_tree)
+                    # Lấy ID sản phẩm vừa tạo để lưu ảnh
+                    new_id_data = self.db.fetch_one("SELECT TOP 1 MaSanPham FROM SanPham ORDER BY MaSanPham DESC")
+                    if new_id_data and self.temp_image_path:
+                        new_id = new_id_data['MaSanPham']
+                        try:
+                            # Lưu ảnh vào thư mục resource
+                            img = Image.open(self.temp_image_path)
+                            save_path = os.path.join(self.resource_path, f"{new_id}.png")
+                            img.save(save_path, "PNG")
+                        except Exception as e:
+                            print(f"Lỗi lưu ảnh: {e}")
+
+                    messagebox.showinfo("Thành công", "Thêm sản phẩm mới thành công!", parent=dialog)
+                    self.load_products(self.view.product_tree) # Load lại danh sách
+                    dialog.destroy() # Đóng popup
                 else:
-                    messagebox.showerror("Lỗi CSDL", "Không thể lưu sản phẩm.", parent=dialog)
-                    
-            except ValueError:
-                messagebox.showerror("Lỗi nhập liệu", "Giá bán, Số lượng, Năm, Phân khối, Bảo hành phải là SỐ.", parent=dialog)
+                    messagebox.showerror("Lỗi", "Thêm thất bại. Lỗi Database.", parent=dialog)
             except Exception as e:
-                messagebox.showerror("Lỗi không xác định", f"{e}", parent=dialog)
+                messagebox.showerror("Lỗi hệ thống", f"Chi tiết: {e}", parent=dialog)
 
-        btn_text = "💾 Thêm Sản Phẩm"
-        btn_color = "#28a745"
-        
-        tk.Button(container, text=btn_text, font=("Arial", 12, "bold"), bg=btn_color, fg="white", command=save, width=20, height=2).grid(row=len(fields), column=0, columnspan=2, pady=20)
+        ttk.Button(frame_btn, text="Lưu Sản Phẩm", command=save_action).pack(side="left", padx=10)
+        ttk.Button(frame_btn, text="Hủy Bỏ", command=dialog.destroy).pack(side="left", padx=10)
 
-
-    def add_product(self):
-        """Hàm public: Gọi popup Thêm"""
-        self._show_product_dialog(None)
-    
-    def edit_product(self):
-        """Hàm cũ (Không còn dùng) - Giờ chúng ta dùng update_product từ panel"""
-        messagebox.showinfo("Thông báo", "Vui lòng chọn sản phẩm từ danh sách và cập nhật trong panel chi tiết.")
-
-    def delete_product(self):
-        """Hàm public: Xóa sản phẩm"""
-        selected = self.view.product_tree.selection()
-        if not selected:
-            messagebox.showwarning("Chú ý", "Vui lòng chọn một sản phẩm để xóa.")
-            return
-
-        item = self.view.product_tree.item(selected[0])
-        sp_id = item['values'][0]
-        sp_name = item['values'][1]
-
-        if messagebox.askyesno("Xác nhận xóa", f"Bạn có chắc muốn XÓA VĨNH VIỄN sản phẩm:\n\n{sp_name} (ID: {sp_id})\n\nLưu ý: Hành động này sẽ thất bại nếu sản phẩm đã tồn tại trong hóa đơn hoặc phiếu nhập kho."):
+    def _select_image_popup(self, label_widget):
+        """Hàm hỗ trợ chọn ảnh và hiển thị preview trong popup"""
+        file_path = filedialog.askopenfilename(
+            title="Chọn ảnh sản phẩm",
+            filetypes=[("Image Files", "*.png *.jpg *.jpeg")]
+        )
+        if file_path:
+            self.temp_image_path = file_path
             try:
-                result = self.db.execute_query("DELETE FROM SanPham WHERE MaSanPham = %s", (sp_id,))
-                
-                if result:
-                    messagebox.showinfo("Thành công", f"Đã xóa sản phẩm '{sp_name}'.")
-                    self.load_products(self.view.product_tree)
-                    # Reset panel
-                    self.original_data = {}
-                    self.view.details_product_id.config(text="Mã: (Chưa chọn)")
-                    self.view.details_name.delete(0, tk.END)
-                    self.view.details_price.delete(0, tk.END)
-                    self.view.details_stock.delete(0, tk.END)
-                    self.view.details_hang.set("")
-                    self.view.details_loai.set("")
-                    self.view.product_image_label.config(image=None)
-                else:
-                    messagebox.showerror("Lỗi", "Xóa thất bại.")
+                img = Image.open(file_path)
+                img = img.resize((80, 80), Image.Resampling.LANCZOS)
+                photo = ImageTk.PhotoImage(img)
+                label_widget.config(image=photo, text="")
+                label_widget.image = photo # Giữ tham chiếu để không bị mất ảnh
             except Exception as e:
-                messagebox.showerror("Lỗi CSDL (Ràng buộc khóa ngoại)", 
-                                     f"Không thể xóa sản phẩm: {e}\n\n"
-                                     "Điều này thường xảy ra do sản phẩm đã được liên kết với một Hóa Đơn hoặc Phiếu Nhập Kho.")
+                messagebox.showerror("Lỗi ảnh", f"Không đọc được ảnh: {e}")

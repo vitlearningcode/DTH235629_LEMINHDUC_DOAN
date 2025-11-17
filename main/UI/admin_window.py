@@ -200,30 +200,7 @@ class Admin:
         for widget in self.content_frame.winfo_children():
             widget.destroy()
             
-    def create_search_bar(self, parent_frame, search_command):
-        """Tạo một frame chứa ô tìm kiếm (LIVE SEARCH)"""
-        search_frame = ttk.Frame(parent_frame, style='Content.TFrame')
-        search_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        ttk.Label(
-            search_frame, 
-            text="Tìm kiếm:", 
-            style='Std.TLabel'
-        ).pack(side=tk.LEFT, padx=(0, 10))
-        
-        search_entry = ttk.Entry(
-            search_frame, 
-            font=("Segoe UI", 12), # Sử dụng font chuẩn
-            width=40
-        )
-        search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        
-        # Gán sự kiện <KeyRelease> để tìm kiếm live
-        search_entry.bind("<KeyRelease>", lambda e: search_command(search_entry.get()))
-        return search_entry
-            
-    
-    
+   
     # =================================================================
     # CÁC HÀM VẼ GIAO DIỆN (UI-DRAWING METHODS)
     # =================================================================
@@ -456,136 +433,137 @@ class Admin:
         self.emp_logic.load_view(self.employee_tree)
     
     def manage_products(self):
-        """Hiển thị UI Quản lý sản phẩm (NÂNG CẤP VỚI PANEL CHI TIẾT)"""
+        """Hiển thị UI Quản lý sản phẩm (NÂNG CẤP)"""
         self.clear_content()
         
-        ttk.Label(
-            self.content_frame,
-            text="QUẢN LÝ THÔNG TIN SẢN PHẨM",
-            style='Content.TLabel'
-        ).pack(pady=(0, 10))
+        # Header
+        ttk.Label(self.content_frame, text="QUẢN LÝ SẢN PHẨM", style='Content.TLabel').pack(pady=(0, 10))
         
-        # --- 1. KHUNG NÚT BẤM CHỨC NĂNG (Giữ lại của Admin) ---
+        # 1. Nút chức năng
         btn_frame = ttk.Frame(self.content_frame, style='Content.TFrame')
-        btn_frame.pack(pady=5, fill=tk.X)
+        btn_frame.pack(pady=5, fill=tk.X, padx=20)
         
-        tk.Button(
-            btn_frame, text="➕ Thêm SP", font=self.font_button, bg="#28a745", fg="white", 
-            command=self.prod_logic.add_product, cursor="hand2"
-        ).pack(side=tk.LEFT, padx=5, ipady=4)
+        tk.Button(btn_frame, text="➕ Thêm Mới", font=self.font_button, bg="#28a745", fg="white", 
+                  command=self.prod_logic.add_product).pack(side=tk.LEFT, padx=5, ipady=4)
         
-        # Nút "Sửa" bị loại bỏ, vì đã có nút "CẬP NHẬT" trong panel
+        tk.Button(btn_frame, text="🗑️ Xóa SP", font=self.font_button, bg="#dc3545", fg="white", 
+                  command=self.prod_logic.delete_product).pack(side=tk.LEFT, padx=5, ipady=4)
         
-        tk.Button(
-            btn_frame, text="🗑️ Xóa SP", font=self.font_button, bg="#dc3545", fg="white", 
-            command=self.prod_logic.delete_product, cursor="hand2"
-        ).pack(side=tk.LEFT, padx=5, ipady=4)
-        
-        # --- 2. THANH TÌM KIẾM (Lấy từ quanly_window) ---
+        # 2. Tìm kiếm
+        container_search = tk.Frame(self.content_frame, bg=self.bg_color)
+        container_search.pack(fill=tk.X, padx=20)
         self.search_entry = self.create_search_bar(
-            self.content_frame,
-            lambda keyword: self.prod_logic.load_products(self.product_tree, keyword) # Sửa tên hàm logic
+            container_search,
+            lambda keyword: self.prod_logic.load_products(self.product_tree, keyword)
         )
 
-        # --- 3. KHUNG BẢNG (Treeview) ---
+        # 3. Bảng dữ liệu
         table_frame = ttk.Frame(self.content_frame, style='Content.TFrame')
-        table_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 10))
+        table_frame.pack(fill=tk.BOTH, expand=True, pady=10, padx=20)
         
-        # Cập nhật cột để giống hệt file quanly_window
         columns = ("Mã SP", "Tên SP", "Hãng", "Loại", "Giá bán", "Tồn kho")
         self.product_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=10)
         
-        tree = self.product_tree
-        tree.heading("Mã SP", text="Mã SP")
-        tree.column("Mã SP", width=50, anchor="center")
-        tree.heading("Tên SP", text="Tên SP")
-        tree.column("Tên SP", width=250, anchor="w") # Tăng chiều rộng
-        tree.heading("Hãng", text="Hãng")
-        tree.column("Hãng", width=100, anchor="center")
-        tree.heading("Loại", text="Loại")
-        tree.column("Loại", width=100, anchor="center")
-        tree.heading("Giá bán", text="Giá bán")
-        tree.column("Giá bán", width=120, anchor="e")
-        tree.heading("Tồn kho", text="Tồn kho")
-        tree.column("Tồn kho", width=80, anchor="center")
+        # Cấu hình cột
+        self.product_tree.heading("Mã SP", text="Mã")
+        self.product_tree.column("Mã SP", width=60, anchor="center")
+        self.product_tree.heading("Tên SP", text="Tên Sản Phẩm")
+        self.product_tree.column("Tên SP", width=250)
+        self.product_tree.heading("Hãng", text="Hãng")
+        self.product_tree.column("Hãng", width=100, anchor="center")
+        self.product_tree.heading("Loại", text="Loại")
+        self.product_tree.column("Loại", width=100, anchor="center")
+        self.product_tree.heading("Giá bán", text="Giá bán")
+        self.product_tree.column("Giá bán", width=120, anchor="e")
+        self.product_tree.heading("Tồn kho", text="Tồn")
+        self.product_tree.column("Tồn kho", width=60, anchor="center")
 
-        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
-        tree.configure(yscrollcommand=scrollbar.set)
-        
-        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.product_tree.yview)
+        self.product_tree.configure(yscrollcommand=scrollbar.set)
+        self.product_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Sửa sự kiện bind thành <ButtonRelease-1> và gọi logic của Admin
-        tree.bind("<ButtonRelease-1>", self.prod_logic.on_product_select)
+        # Sự kiện chọn dòng
+        self.product_tree.bind("<ButtonRelease-1>", self.prod_logic.on_product_select)
         
-        # --- 4. KHUNG CHI TIẾT (Panel) ---
-        details_frame = ttk.LabelFrame(self.content_frame, text="Chi tiết Sản phẩm", style='Details.TLabelframe')
-        details_frame.pack(fill=tk.X, expand=False, pady=(10, 0))
+        # 4. Panel Chi tiết
+        details_frame = ttk.LabelFrame(self.content_frame, text="Thông tin chi tiết & Cập nhật", style='Details.TLabelframe')
+        details_frame.pack(fill=tk.X, expand=False, pady=(0, 20), padx=20)
 
-        # Cột trái: ảnh sản phẩm
+        # -- Cột Ảnh (Trái) -
         image_frame = ttk.Frame(details_frame, style='Card.TFrame', width=160, height=200)
         image_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(10, 20), pady=10)
-        image_frame.pack_propagate(False)
+        image_frame.pack_propagate(False) 
+        
+        
+        
         upload_button = ttk.Button(
-            image_frame, text="Tải ảnh lên", style='Func.TButton',
-            command=self.prod_logic.upload_image, cursor="hand2"
+            image_frame, 
+            text="Tải ảnh lên", 
+            style='Func.TButton', 
+            command=self.prod_logic.upload_image, # Gọi logic
+            cursor="hand2"
         )
         upload_button.pack(side=tk.BOTTOM, pady=10)
-        self.product_image_label = ttk.Label(
-            image_frame, text="Chọn SP", anchor="center", background="lightgrey", relief="groove")
+        
+        self.product_image_label = ttk.Label(image_frame, text="No Image", anchor="center", background="lightgrey", relief="groove")
         self.product_image_label.pack(fill=tk.BOTH, expand=True, side=tk.TOP, pady=5, padx=5)
-
-        # Cột phải: các trường thông tin
+       
+        # -- Cột Thông tin (Phải) --
         info_frame = ttk.Frame(details_frame, style='Card.TFrame')
         info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, pady=10, padx=(0, 20))
+        
+        # Hàng 1
+        self.details_product_id = ttk.Label(info_frame, text="Mã: ...", font=("Segoe UI", 12, "bold"))
+        self.details_product_id.grid(row=0, column=0, sticky="w", padx=10, pady=5)
 
-        self.details_product_id = ttk.Label(info_frame, text="Mã: (Chưa chọn)", style='Details.TLabel', font=self.font_label)
-        self.details_product_id.grid(row=0, column=0, pady=10, sticky="w", padx=10)
+        # Hàng 2: Tên & Trạng thái
+        ttk.Label(info_frame, text="Tên SP:", style='Details.TLabel').grid(row=1, column=0, sticky="e", padx=5)
+        self.details_name = ttk.Entry(info_frame, font=("Segoe UI", 11))
+        self.details_name.grid(row=1, column=1, sticky="ew", padx=5)
+        
+        ttk.Label(info_frame, text="Trạng thái:", style='Details.TLabel').grid(row=1, column=2, sticky="e", padx=5)
+        self.details_trangthai = ttk.Combobox(info_frame, state="readonly", font=("Segoe UI", 11))
+        self.details_trangthai.grid(row=1, column=3, sticky="ew", padx=5)
 
-        # Tên sản phẩm
-        ttk.Label(info_frame, text="Tên SP:", style='Details.TLabel').grid(row=1, column=0, sticky="e", padx=10, pady=5)
-        self.details_name = ttk.Entry(info_frame, font=self.font_label, width=30)
-        self.details_name.grid(row=1, column=1, pady=5, sticky="ew")
+        # Hàng 3: Giá & Hãng
+        ttk.Label(info_frame, text="Giá bán:", style='Details.TLabel').grid(row=2, column=0, sticky="e", padx=5)
+        self.details_price = ttk.Entry(info_frame, font=("Segoe UI", 11))
+        self.details_price.grid(row=2, column=1, sticky="ew", padx=5)
+        
+        ttk.Label(info_frame, text="Hãng xe:", style='Details.TLabel').grid(row=2, column=2, sticky="e", padx=5)
+        self.details_hang = ttk.Combobox(info_frame, state="readonly", font=("Segoe UI", 11))
+        self.details_hang.grid(row=2, column=3, sticky="ew", padx=5)
 
-        # Giá bán
-        ttk.Label(info_frame, text="Giá bán:", style='Details.TLabel').grid(row=2, column=0, sticky="e", padx=10, pady=5)
-        self.details_price = ttk.Entry(info_frame, font=self.font_label, width=30)
-        self.details_price.grid(row=2, column=1, pady=5, sticky="ew")
+        # Hàng 4: Tồn kho & Loại
+        ttk.Label(info_frame, text="Tồn kho:", style='Details.TLabel').grid(row=3, column=0, sticky="e", padx=5)
+        self.details_stock = ttk.Entry(info_frame, font=("Segoe UI", 11))
+        self.details_stock.grid(row=3, column=1, sticky="ew", padx=5)
 
-        # Tồn kho
-        ttk.Label(info_frame, text="Tồn kho:", style='Details.TLabel').grid(row=3, column=0, sticky="e", padx=10, pady=5)
-        self.details_stock = ttk.Entry(info_frame, font=self.font_label, width=30)
-        self.details_stock.grid(row=3, column=1, pady=5, sticky="ew")
+        ttk.Label(info_frame, text="Loại xe:", style='Details.TLabel').grid(row=3, column=2, sticky="e", padx=5)
+        self.details_loai = ttk.Combobox(info_frame, state="readonly", font=("Segoe UI", 11))
+        self.details_loai.grid(row=3, column=3, sticky="ew", padx=5)
+        
+        # Nút Cập nhật
+        self.update_button = tk.Button(info_frame, text="LƯU THAY ĐỔI", bg="#cccccc", fg="white", 
+                                       font=("Segoe UI", 10, "bold"), state="disabled",
+                                       command=self.prod_logic.update_product)
+        self.update_button.grid(row=4, column=3, sticky="e", padx=5, pady=15)
 
-        # Hãng xe (Cần logic load_products để lấy danh sách hãng)
-        ttk.Label(info_frame, text="Hãng:", style='Details.TLabel').grid(row=1, column=2, sticky="e", padx=10, pady=5)
-        self.details_hang = ttk.Combobox(info_frame, values=[], state="readonly", font=self.font_label, width=20)
-        self.details_hang.grid(row=1, column=3, pady=5, padx=10, sticky="ew")
+        # Cấu hình grid
+        info_frame.columnconfigure(1, weight=1)
+        info_frame.columnconfigure(3, weight=1)
 
-        # Loại xe (Cần logic load_products để lấy danh sách loại)
-        ttk.Label(info_frame, text="Loại:", style='Details.TLabel').grid(row=2, column=2, sticky="e", padx=10, pady=5)
-        self.details_loai = ttk.Combobox(info_frame, values=[], state="readonly", font=self.font_label, width=20)
-        self.details_loai.grid(row=2, column=3, pady=5, padx=10, sticky="ew")
+        # Bind Event check changes
+        for widget in [self.details_name, self.details_price, self.details_stock]:
+            widget.bind("<KeyRelease>", self.prod_logic.check_for_changes)
+        
+        for combo in [self.details_trangthai, self.details_hang, self.details_loai]:
+            combo.bind("<<ComboboxSelected>>", self.prod_logic.check_for_changes)
 
-        # Nút cập nhật
-        self.update_button = tk.Button(
-            info_frame, text="CẬP NHẬT", font=self.font_button, bg="#007bff", fg="white",
-            relief="flat", padx=20, pady=10, command=self.prod_logic.update_product, state="disabled", cursor=""
-        )
-        self.update_button.grid(row=3, column=3, pady=10, padx=10, sticky="e")
-
-        info_frame.grid_columnconfigure(1, weight=1)
-        info_frame.grid_columnconfigure(3, weight=1)
-
-        # Bind sự kiện
-        self.details_name.bind("<KeyRelease>", self.prod_logic.check_for_changes)
-        self.details_price.bind("<KeyRelease>", self.prod_logic.check_for_changes)
-        self.details_stock.bind("<KeyRelease>", self.prod_logic.check_for_changes)
-        self.details_hang.bind("<<ComboboxSelected>>", self.prod_logic.check_for_changes)
-        self.details_loai.bind("<<ComboboxSelected>>", self.prod_logic.check_for_changes)
-
-        # Tải dữ liệu ban đầu
-        self.prod_logic.load_products(tree)
+        # --- QUAN TRỌNG: GỌI LOGIC SAU KHI UI ĐÃ TẠO ---
+        self.prod_logic.update_combobox_data() # Đổ dữ liệu vào combo
+        self.prod_logic.load_products(self.product_tree) # Tải dữ liệu bảng
         
     def manage_parts(self):
         """Hiển thị UI Quản lý phụ tùng (NÂNG CẤP VỚI PANEL CHI TIẾT)"""
