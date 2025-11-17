@@ -70,10 +70,10 @@ class AdminWarehouseLogic:
         
         tk.Label(dialog, text="Chọn Nhà Cung Cấp:", font=("Arial", 11)).pack(pady=10)
         
-        # Tải danh sách nhà cung cấp để đưa vào Combobox
+        # Tải danh sách nhà cung cấp
         try:
             suppliers = self.db.fetch_all("SELECT MaNhaCungCap, TenNhaCungCap FROM NhaCungCap WHERE TrangThai = 'HoatDong'")
-            supplier_names = [s['TenNhaCungCap'] for s in suppliers]
+            supplier_names = [s['TenNhaCungCap'] for s in suppliers] if suppliers else []
         except Exception as e:
             messagebox.showerror("Lỗi", f"Không thể tải danh sách nhà cung cấp: {e}")
             dialog.destroy()
@@ -87,7 +87,8 @@ class AdminWarehouseLogic:
         supplier_var = tk.StringVar()
         supplier_combo = ttk.Combobox(dialog, textvariable=supplier_var, values=supplier_names, state="readonly", width=40)
         supplier_combo.pack(pady=5, padx=20)
-        supplier_combo.current(0) 
+        if supplier_names:
+            supplier_combo.current(0) 
 
         tk.Label(dialog, text="Ghi chú (nếu có):", font=("Arial", 11)).pack(pady=10)
         ghi_chu_entry = tk.Entry(dialog, font=("Arial", 11), width=42)
@@ -109,21 +110,44 @@ class AdminWarehouseLogic:
             ghi_chu = ghi_chu_entry.get().strip()
             admin_id = self.view.user_info['MaNguoiDung'] 
 
-            # Lưu ý: Trong CSDL vẫn lưu là 'ChoXacNhan' (tiếng Anh) để chuẩn hóa
+            # --- SỬA LỖI: DÙNG OUTPUT INSERTED ---
+            # Cách này giúp INSERT trả về dữ liệu ngay lập tức, 
+            # không cần dùng dấu ; hay SELECT SCOPE_IDENTITY() tách riêng.
             query = """
                 INSERT INTO PhieuNhapKho (MaNhaCungCap, MaNguoiDung, TrangThai, GhiChu)
+                OUTPUT Inserted.MaPhieuNhap
                 VALUES (%s, %s, 'ChoXacNhan', %s)
             """
             
-            ma_phieu_nhap = self.db.execute_query(query, (selected_supplier_id, admin_id, ghi_chu))
-            
-            if ma_phieu_nhap:
-                self.load_phieu_nhap()
-                dialog.destroy()
-                messagebox.showinfo("Thành công", f"Đã tạo Phiếu nhập kho #{ma_phieu_nhap}.\nVui lòng thêm chi tiết sản phẩm/phụ tùng.")
-                self._show_detail_window(ma_phieu_nhap, is_view_only=False)
-            else:
-                messagebox.showerror("Lỗi", "Không thể tạo phiếu nhập kho.")
+            try:
+                # fetch_all sẽ nhận được ngay kết quả từ OUTPUT
+                result = self.db.fetch_all(query, (selected_supplier_id, admin_id, ghi_chu))
+                
+                ma_phieu_nhap = None
+                
+                if result and len(result) > 0:
+                    first_row = result[0]
+                    # Xử lý lấy ID dù trả về Dict hay Tuple
+                    if isinstance(first_row, dict):
+                        # Lấy value của cột MaPhieuNhap (hoặc key bất kỳ)
+                        ma_phieu_nhap = int(list(first_row.values())[0])
+                    elif isinstance(first_row, (list, tuple)):
+                        ma_phieu_nhap = int(first_row[0])
+                    else:
+                        ma_phieu_nhap = int(first_row)
+                
+                if ma_phieu_nhap:
+                    self.load_phieu_nhap()
+                    dialog.destroy()
+                    messagebox.showinfo("Thành công", f"Đã tạo Phiếu nhập kho #{ma_phieu_nhap}.\nVui lòng thêm chi tiết.")
+                    # Mở cửa sổ chi tiết
+                    self._show_detail_window(ma_phieu_nhap, is_view_only=False)
+                else:
+                    messagebox.showerror("Lỗi", "Không lấy được mã phiếu nhập mới (ID trả về rỗng).")
+                    
+            except Exception as e:
+                print(f"Debug Error: {e}")
+                messagebox.showerror("Lỗi", f"Lỗi CSDL khi tạo phiếu: {e}")
 
         tk.Button(dialog, text="💾 Tạo Phiếu Nhập", command=save_phieu_nhap, 
                   font=("Arial", 11, "bold"), bg="#28a745", fg="white").pack(pady=20)
