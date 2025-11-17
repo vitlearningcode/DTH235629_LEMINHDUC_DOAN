@@ -363,11 +363,11 @@ class QuanLy:
 
         # --- CỘT 2 THÔNG TIN ---
         ttk.Label(info_frame, text="Vai trò:", style='Details.TLabel').grid(row=1, column=2, sticky="e", padx=10, pady=5)
-        self.details_vaitro = ttk.Combobox(info_frame, values=["NhanVien", "QuanLy"], state="readonly", font=self.font_label, width=20)
+        self.details_vaitro = ttk.Combobox(info_frame, values=["Nhân Viên", "Quản Lý"], state="readonly", font=self.font_label, width=20)
         self.details_vaitro.grid(row=1, column=3, pady=5, padx=10, sticky="ew")
         
         ttk.Label(info_frame, text="Trạng thái:", style='Details.TLabel').grid(row=2, column=2, sticky="e", padx=10, pady=5)
-        self.details_trangthai = ttk.Combobox(info_frame, values=["HoatDong", "KhongHoatDong"], state="readonly", font=self.font_label, width=20)
+        self.details_trangthai = ttk.Combobox(info_frame, values=["Hoạt động", "Không hoạt động"], state="readonly", font=self.font_label, width=20)
         self.details_trangthai.grid(row=2, column=3, pady=5, padx=10, sticky="ew")
 
         # --- NÚT CẬP NHẬT (CHUYỂN VÀO ĐÂY) ---

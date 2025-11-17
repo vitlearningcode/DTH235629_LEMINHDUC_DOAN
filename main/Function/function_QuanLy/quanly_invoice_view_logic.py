@@ -1,5 +1,5 @@
 # main/Function/function_QuanLy/quanly_invoice_view_logic.py
-# (Đã thêm chức năng show_invoice_details)
+# (Đã thêm chức năng show_invoice_details và Việt hóa trạng thái)
 
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -8,9 +8,17 @@ class QuanLyInvoiceViewLogic:
     def __init__(self, view):
         self.view = view
         self.db = view.db
+        
+        # Ánh xạ Trạng thái Hóa đơn sang Tiếng Việt
+        self.status_map = {
+            'DaThanhToan': 'Đã thanh toán',
+            'ConNo': 'Còn nợ',
+            'DaHuy': 'Đã hủy',
+            # Thêm các trạng thái khác nếu có
+        }
 
     def load_view(self, tree, keyword=None):
-        """Tải dữ liệu Xem hóa đơn, có hỗ trợ tìm kiếm"""
+        """Tải dữ liệu Xem hóa đơn, có hỗ trợ tìm kiếm và Việt hóa trạng thái"""
         for item in tree.get_children():
             tree.delete(item)
             
@@ -23,20 +31,22 @@ class QuanLyInvoiceViewLogic:
         params = []
         
         if keyword:
-            # SỬA LỖI: Dùng %s
             query += " WHERE TenKhachHang LIKE %s OR SoDienThoai LIKE %s OR CAST(MaHoaDon AS VARCHAR(20)) = %s"
             params.extend([f"%{keyword}%", f"%{keyword}%", keyword])
             
-        query += " ORDER BY MaHoaDon DESC"
+        query += " ORDER BY MaHoaDon ASC"
         
         records = self.db.fetch_all(query, params)
         
         if records:
             for rec in records:
+                # Ánh xạ trạng thái
+                display_status = self.status_map.get(rec['TrangThai'], rec['TrangThai'])
+                
                 tree.insert("", tk.END, values=(
                     rec['MaHoaDon'], rec['NgayLapFormatted'], rec['TenKhachHang'],
                     rec['NhanVienLap'], f"{rec['TongThanhToan']:,.0f} VNĐ",
-                    f"{rec['TienConNo']:,.0f} VNĐ", rec['TrangThai']
+                    f"{rec['TienConNo']:,.0f} VNĐ", display_status
                 ))
 
     def show_invoice_details(self):
@@ -69,7 +79,6 @@ class QuanLyInvoiceViewLogic:
         sp_tree.column("Tên sản phẩm", width=300)
         sp_tree.pack(fill=tk.BOTH, expand=True)
 
-        # SỬA LỖI: Dùng %s
         query_sp = """
             SELECT sp.TenSanPham, cthd.SoLuong, cthd.DonGia
             FROM ChiTietHoaDonSanPham cthd
@@ -94,7 +103,6 @@ class QuanLyInvoiceViewLogic:
         pt_tree.column("Tên phụ tùng", width=300)
         pt_tree.pack(fill=tk.BOTH, expand=True)
 
-        # SỬA LỖI: Dùng %s
         query_pt = """
             SELECT pt.TenPhuTung, cthd.SoLuong, cthd.DonGia
             FROM ChiTietHoaDonPhuTung cthd
