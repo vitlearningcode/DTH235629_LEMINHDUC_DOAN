@@ -836,26 +836,45 @@ class Admin:
         
         self.cust_logic.load_customers() # Tải dữ liệu ban đầu
 
+   # FILE: main/UI/admin_window.py
+
     def manage_invoices(self):
         """Hiển thị UI Quản lý hóa đơn"""
         self.clear_content()
         tk.Label(self.content_frame, text="QUẢN LÝ HÓA ĐƠN", font=("Arial", 18, "bold"), bg=self.bg_color, fg="#003366").pack(pady=10)
 
-        # --- KHUNG NÚT BẤM ---
-        btn_frame = tk.Frame(self.content_frame, bg=self.bg_color)
-        btn_frame.pack(pady=10, fill=tk.X, padx=20)
-        
+        # --- KHUNG CHỨC NĂNG (TÌM KIẾM & NÚT) ---
+        func_frame = tk.Frame(self.content_frame, bg=self.bg_color)
+        func_frame.pack(pady=10, fill=tk.X, padx=20)
+
+        # Ô tìm kiếm
+        tk.Label(func_frame, text="Tìm kiếm (Tên KH hoặc Mã HĐ):", bg=self.bg_color, font=("Arial", 11)).pack(side=tk.LEFT, padx=(0, 5))
+        search_entry = tk.Entry(func_frame, font=("Arial", 11), width=30)
+        search_entry.pack(side=tk.LEFT, padx=5, ipady=4)
+
+        # Nút Tìm kiếm [MỚI]
         tk.Button(
-            btn_frame, text="🔍 Xem Chi Tiết", font=("Arial", 11, "bold"), bg="#007bff", fg="white", 
-            command=self.invoice_logic.show_invoice_details, # <-- Logic mới sẽ được thêm
-            width=20, height=2
-        ).pack(side=tk.LEFT, padx=10)
-        
+            func_frame, text="🔍 Tìm", font=("Arial", 10, "bold"), bg=self.btn_color, fg="white", 
+            command=lambda: self.invoice_logic.load_invoices(search_entry.get())
+        ).pack(side=tk.LEFT, padx=5, ipady=4)
+
+        # Nút Làm mới [CẬP NHẬT]
         tk.Button(
-            btn_frame, text="🔄 Tải lại", font=("Arial", 11, "bold"), bg="#17a2b8", fg="white",
-            command=self.manage_invoices, # Tải lại chính nó
-            width=20, height=2
-        ).pack(side=tk.LEFT, padx=10)
+            func_frame, text="🔄 Tải lại", font=("Arial", 10, "bold"), bg="#17a2b8", fg="white",
+            command=lambda: (search_entry.delete(0, tk.END), self.invoice_logic.load_invoices())
+        ).pack(side=tk.LEFT, padx=5, ipady=4)
+        
+        # Nút Xem chi tiết
+        tk.Button(
+            func_frame, text="👁️ Xem Chi Tiết", font=("Arial", 10, "bold"), bg="#007bff", fg="white", 
+            command=self.invoice_logic.show_invoice_details
+        ).pack(side=tk.LEFT, padx=5, ipady=4)
+
+        # Nút Xóa hóa đơn [MỚI]
+        tk.Button(
+            func_frame, text="🗑️ Xóa Hóa Đơn", font=("Arial", 10, "bold"), bg="#dc3545", fg="white", 
+            command=self.invoice_logic.delete_invoice
+        ).pack(side=tk.LEFT, padx=5, ipady=4)
 
         # --- KHUNG HIỂN THỊ DANH SÁCH ---
         table_frame = tk.Frame(self.content_frame, bg=self.bg_color)
@@ -864,13 +883,13 @@ class Admin:
         columns = ("Mã HĐ", "Khách hàng", "Nhân viên", "Ngày lập", "Tổng tiền", "Thanh toán", "Còn nợ", "Trạng thái")
         self.invoice_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=20)
         
-        # Định dạng cột
+        # ... (Phần định dạng cột Treeview giữ nguyên như cũ) ...
         self.invoice_tree.heading("Mã HĐ", text="Mã HĐ")
         self.invoice_tree.column("Mã HĐ", width=60, anchor="center")
         self.invoice_tree.heading("Khách hàng", text="Khách hàng")
         self.invoice_tree.column("Khách hàng", width=200)
         self.invoice_tree.heading("Nhân viên", text="Nhân viên")
-        self.invoice_tree.column("Nhân viên", width=200)
+        self.invoice_tree.column("Nhân viên", width=150)
         self.invoice_tree.heading("Ngày lập", text="Ngày lập")
         self.invoice_tree.column("Ngày lập", width=130, anchor="center")
         self.invoice_tree.heading("Tổng tiền", text="Tổng tiền")
@@ -888,7 +907,9 @@ class Admin:
         self.invoice_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Thêm sự kiện double-click
+        # Bind sự kiện enter để tìm kiếm
+        search_entry.bind("<Return>", lambda e: self.invoice_logic.load_invoices(search_entry.get()))
+        
         self.invoice_tree.bind("<Double-1>", lambda e: self.invoice_logic.show_invoice_details())
         
         self.invoice_logic.load_invoices()
