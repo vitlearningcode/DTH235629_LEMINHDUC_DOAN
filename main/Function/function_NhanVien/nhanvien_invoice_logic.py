@@ -23,7 +23,7 @@ class NhanVienInvoiceLogic:
             FROM HoaDon hd
             JOIN KhachHang kh ON hd.MaKhachHang = kh.MaKhachHang
             WHERE hd.MaNguoiDung = %s
-            ORDER BY hd.MaHoaDon DESC
+            ORDER BY hd.MaHoaDon ASC
         """
         try:
             invoices = self.db.fetch_all(query, (self.view.user_info['MaNguoiDung'],))

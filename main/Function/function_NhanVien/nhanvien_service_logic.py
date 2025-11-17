@@ -70,7 +70,7 @@ class NhanVienServiceLogic:
             FROM PhieuBaoHanh pb
             JOIN SanPham sp ON pb.MaSanPham = sp.MaSanPham
             WHERE pb.MaKhachHang = %s
-            ORDER BY pb.NgayKetThuc DESC
+            ORDER BY pb.NgayKetThuc ASC
         """
         records = self.db.fetch_all(query, (self.current_customer_id,))
         
@@ -107,7 +107,7 @@ class NhanVienServiceLogic:
             FROM LichSuBaoHanh ls
             JOIN NguoiDung nd ON ls.NguoiXuLy = nd.MaNguoiDung
             WHERE ls.MaPhieuBaoHanh = %s
-            ORDER BY ls.NgaySuaChua DESC
+            ORDER BY ls.NgaySuaChua ASC
         """
         records = self.db.fetch_all(query, (warranty_id,))
         for item in self.view.history_tree.get_children():

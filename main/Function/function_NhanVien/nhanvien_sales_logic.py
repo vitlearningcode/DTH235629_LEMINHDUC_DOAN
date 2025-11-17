@@ -18,7 +18,7 @@ class NhanVienSalesLogic:
             FROM SanPham sp
             JOIN HangXe hx ON sp.MaHangXe = hx.MaHangXe
             WHERE sp.TrangThai = 'ConHang' AND sp.SoLuongTon > 0
-            ORDER BY sp.TenSanPham
+            ORDER BY sp.MaSanPham
         """
         products = self.db.fetch_all(query)
         
@@ -42,7 +42,7 @@ class NhanVienSalesLogic:
             FROM PhuTung pt
             LEFT JOIN LoaiPhuTung lpt ON pt.MaLoaiPhuTung = lpt.MaLoaiPhuTung
             WHERE pt.TrangThai = 'ConHang' AND pt.SoLuongTon > 0
-            ORDER BY pt.TenPhuTung
+            ORDER BY pt.MaPhuTung
         """
         parts = self.db.fetch_all(query)
         
