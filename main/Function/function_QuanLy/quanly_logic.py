@@ -8,6 +8,18 @@ from datetime import datetime, date
 # from login import Login  <-- XÓA DÒNG NÀY
 
 class QuanLyLogic:
+    # 🌟 PHẦN CẬP NHẬT 1: ÁNH XẠ DỮ LIỆU TỪ CSDL SANG HIỂN THỊ (TIẾNG VIỆT)
+    STATUS_MAPPING = {
+        "DiLam": "Đi làm",
+        "VangMat": "Vắng mặt",
+        "NghiPhep": "Nghỉ phép",
+        "DiTre": "Đi trễ",
+        "ChuaCham": "Chưa chấm" # Giá trị mặc định khi chưa có dữ liệu
+    }
+    
+    # ÁNH XẠ NGƯỢC LẠI (TỪ TIẾNG VIỆT SANG GIÁ TRỊ CSDL)
+    INVERSE_STATUS_MAPPING = {v: k for k, v in STATUS_MAPPING.items()}
+    
     def __init__(self, view):
         """
         Khởi tạo lớp logic cho Quản Lý.
@@ -38,13 +50,19 @@ class QuanLyLogic:
         
         if records:
             for rec in records:
+                # Lấy trạng thái từ CSDL
+                trang_thai_db = rec['TrangThai']
+                
+                # 🌟 PHẦN CẬP NHẬT 2: CHUYỂN ĐỔI KHI TẢI DỮ LIỆU
+                trang_thai_hien_thi = self.STATUS_MAPPING.get(trang_thai_db, self.STATUS_MAPPING['ChuaCham'])
+
                 self.view.attendance_tree.insert("", tk.END, values=(
                     rec['MaNguoiDung'],
                     rec['HoTen'],
                     rec['GioVao'] or "",
                     rec['GioRa'] or "",
                     rec['SoGioLam'] or "",
-                    rec['TrangThai'] or "Chưa chấm"
+                    trang_thai_hien_thi # Dùng giá trị tiếng Việt
                 ))
     
     def add_attendance(self):
@@ -76,11 +94,15 @@ class QuanLyLogic:
         gio_ra.insert(0, "17:00")
         
         tk.Label(dialog, text="Trạng thái:", font=("Arial", 11)).pack(pady=5)
-        status_var = tk.StringVar(value="DiLam")
+        
+        # 🌟 PHẦN CẬP NHẬT 3: TẠO DANH SÁCH TIẾNG VIỆT CHO COMBOBOX
+        status_options_vn = [v for k, v in self.STATUS_MAPPING.items() if k != "ChuaCham"]
+        
+        status_var = tk.StringVar(value=self.STATUS_MAPPING['DiLam']) # Mặc định là 'Đi làm' (Tiếng Việt)
         status_combo = ttk.Combobox(
             dialog,
             textvariable=status_var,
-            values=["DiLam", "VangMat", "NghiPhep", "DiTre"],
+            values=status_options_vn, # Dùng danh sách tiếng Việt
             font=("Arial", 11),
             state="readonly",
             width=18
@@ -93,7 +115,13 @@ class QuanLyLogic:
                 h2, m2 = map(int, gio_ra.get().split(':'))
                 hours = (h2 * 60 + m2 - h1 * 60 - m1) / 60
                 
-                # --- SỬA LỖI TƯƠNG THÍCH SQL SERVER ---
+                # 🌟 PHẦN CẬP NHẬT 4: CHUYỂN ĐỔI TIẾNG VIỆT SANG GIÁ TRỊ CSDL KHI LƯU
+                trang_thai_db = self.INVERSE_STATUS_MAPPING.get(status_var.get())
+                if not trang_thai_db:
+                    messagebox.showerror("Lỗi", "Giá trị trạng thái không hợp lệ.")
+                    return
+                # ---------------------------------------------
+
                 check_query = "SELECT MaChamCong FROM ChamCong WHERE MaNguoiDung = %s AND NgayChamCong = %s"
                 existing = self.db.fetch_one(check_query, (emp_id, selected_date))
                 
@@ -107,7 +135,7 @@ class QuanLyLogic:
                     """
                     result = self.db.execute_query(
                         update_query,
-                        (gio_vao.get(), gio_ra.get(), hours, status_var.get(), self.view.user_info['MaNguoiDung'], emp_id, selected_date)
+                        (gio_vao.get(), gio_ra.get(), hours, trang_thai_db, self.view.user_info['MaNguoiDung'], emp_id, selected_date)
                     )
                 else:
                     insert_query = """
@@ -116,7 +144,7 @@ class QuanLyLogic:
                     """
                     result = self.db.execute_query(
                         insert_query,
-                        (emp_id, selected_date, gio_vao.get(), gio_ra.get(), hours, status_var.get(), self.view.user_info['MaNguoiDung'])
+                        (emp_id, selected_date, gio_vao.get(), gio_ra.get(), hours, trang_thai_db, self.view.user_info['MaNguoiDung'])
                     )
                 
                 if result is not None:
@@ -152,4 +180,4 @@ class QuanLyLogic:
         """Xử lý đóng cửa sổ"""
         if messagebox.askyesno("Xác nhận", "Bạn có chắc muốn thoát?"):
             self.db.disconnect()
-            self.view.window.destroy()  
+            self.view.window.destroy()

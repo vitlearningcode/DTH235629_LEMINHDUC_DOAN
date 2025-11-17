@@ -30,13 +30,26 @@ class AdminAttendanceLogic: # <-- ĐÃ ĐỔI TÊN CLASS
         
         if records:
             for rec in records:
+                # --- CHUYỂN ĐỔI TRẠNG THÁI SANG TIẾNG VIỆT ---
+                raw_status = rec['TrangThai']
+                display_status = "Chưa chấm"
+                
+                if raw_status == 'DiLam':
+                    display_status = "Đi làm"
+                elif raw_status == 'VangMat':
+                    display_status = "Vắng mặt"
+                elif raw_status == 'NghiPhep':
+                    display_status = "Nghỉ phép"
+                elif raw_status == 'DiTre':
+                    display_status = "Đi trễ"
+                
                 self.view.attendance_tree.insert("", tk.END, values=(
                     rec['MaNguoiDung'],
                     rec['HoTen'],
                     rec['GioVao'] or "",
                     rec['GioRa'] or "",
                     rec['SoGioLam'] or "",
-                    rec['TrangThai'] or "Chưa chấm"
+                    display_status
                 ))
     
     def add_attendance(self):
@@ -71,7 +84,7 @@ class AdminAttendanceLogic: # <-- ĐÃ ĐỔI TÊN CLASS
         status_combo = ttk.Combobox(
             dialog,
             textvariable=status_var,
-            values=["DiLam", "VangMat", "NghiPhep", "DiTre"],
+            values=["Đi làm", "Vắng mặt", "Nghỉ phép", "Đi trễ"],
             font=("Arial", 11),
             state="readonly",
             width=18
@@ -83,6 +96,19 @@ class AdminAttendanceLogic: # <-- ĐÃ ĐỔI TÊN CLASS
                 h1, m1 = map(int, gio_vao.get().split(':'))
                 h2, m2 = map(int, gio_ra.get().split(':'))
                 hours = (h2 * 60 + m2 - h1 * 60 - m1) / 60
+                
+                # --- CHUYỂN ĐỔI TRẠNG THÁI TỪ TIẾNG VIỆT SANG TIẾNG ANH TRƯỚC KHI LƯU ---
+                status_text = status_var.get()
+                status_db = "DiLam"
+                
+                if status_text == "Đi làm":
+                    status_db = "DiLam"
+                elif status_text == "Vắng mặt":
+                    status_db = "VangMat"
+                elif status_text == "Nghỉ phép":
+                    status_db = "NghiPhep"
+                elif status_text == "Đi trễ":
+                    status_db = "DiTre"
                 
                 check_query = "SELECT MaChamCong FROM ChamCong WHERE MaNguoiDung = %s AND NgayChamCong = %s"
                 existing = self.db.fetch_one(check_query, (emp_id, selected_date))
@@ -97,7 +123,7 @@ class AdminAttendanceLogic: # <-- ĐÃ ĐỔI TÊN CLASS
                     """
                     result = self.db.execute_query(
                         update_query,
-                        (gio_vao.get(), gio_ra.get(), hours, status_var.get(), self.view.user_info['MaNguoiDung'], emp_id, selected_date)
+                        (gio_vao.get(), gio_ra.get(), hours, status_db, self.view.user_info['MaNguoiDung'], emp_id, selected_date)
                     )
                 else:
                     insert_query = """
@@ -106,7 +132,7 @@ class AdminAttendanceLogic: # <-- ĐÃ ĐỔI TÊN CLASS
                     """
                     result = self.db.execute_query(
                         insert_query,
-                        (emp_id, selected_date, gio_vao.get(), gio_ra.get(), hours, status_var.get(), self.view.user_info['MaNguoiDung'])
+                        (emp_id, selected_date, gio_vao.get(), gio_ra.get(), hours, status_db, self.view.user_info['MaNguoiDung'])
                     )
                 
                 if result is not None:

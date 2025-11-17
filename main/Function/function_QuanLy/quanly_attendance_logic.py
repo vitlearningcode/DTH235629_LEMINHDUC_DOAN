@@ -10,6 +10,16 @@ class QuanLyAttendanceLogic:
         self.view = view
         self.db = view.db
 
+        # Ánh xạ trạng thái CSDL -> Tiếng Việt
+        self.STATUS_MAPPING = {
+            "DiLam": "Đi làm",
+            "VangMat": "Vắng mặt",
+            "NghiPhep": "Nghỉ phép",
+            "DiTre": "Đi trễ",
+            "ChuaCham": "Chưa chấm"
+        }
+        self.INVERSE_STATUS_MAPPING = {v: k for k, v in self.STATUS_MAPPING.items()}
+
     def load_attendance(self):
         """Tải dữ liệu chấm công"""
         for item in self.view.attendance_tree.get_children():
@@ -30,13 +40,16 @@ class QuanLyAttendanceLogic:
         
         if records:
             for rec in records:
+                trang_thai_db = rec.get('TrangThai')
+                trang_thai_hien_thi = self.STATUS_MAPPING.get(trang_thai_db, self.STATUS_MAPPING['ChuaCham'])
+
                 self.view.attendance_tree.insert("", tk.END, values=(
                     rec['MaNguoiDung'],
                     rec['HoTen'],
                     rec['GioVao'] or "",
                     rec['GioRa'] or "",
                     rec['SoGioLam'] or "",
-                    rec['TrangThai'] or "Chưa chấm"
+                    trang_thai_hien_thi
                 ))
     
     def add_attendance(self):
@@ -67,11 +80,13 @@ class QuanLyAttendanceLogic:
         gio_ra.insert(0, "17:00")
         
         tk.Label(dialog, text="Trạng thái:", font=("Arial", 11)).pack(pady=5)
-        status_var = tk.StringVar(value="DiLam")
+        # Sử dụng danh sách tiếng Việt cho combobox
+        status_options_vn = [v for k, v in self.STATUS_MAPPING.items() if k != 'ChuaCham']
+        status_var = tk.StringVar(value=self.STATUS_MAPPING['DiLam'])
         status_combo = ttk.Combobox(
             dialog,
             textvariable=status_var,
-            values=["DiLam", "VangMat", "NghiPhep", "DiTre"],
+            values=status_options_vn,
             font=("Arial", 11),
             state="readonly",
             width=18
@@ -84,6 +99,9 @@ class QuanLyAttendanceLogic:
                 h2, m2 = map(int, gio_ra.get().split(':'))
                 hours = (h2 * 60 + m2 - h1 * 60 - m1) / 60
                 
+                # Chuyển từ hiển thị (Tiếng Việt) về mã CSDL khi lưu
+                trang_thai_db = self.INVERSE_STATUS_MAPPING.get(status_var.get(), status_var.get())
+
                 check_query = "SELECT MaChamCong FROM ChamCong WHERE MaNguoiDung = %s AND NgayChamCong = %s"
                 existing = self.db.fetch_one(check_query, (emp_id, selected_date))
                 
@@ -97,7 +115,7 @@ class QuanLyAttendanceLogic:
                     """
                     result = self.db.execute_query(
                         update_query,
-                        (gio_vao.get(), gio_ra.get(), hours, status_var.get(), self.view.user_info['MaNguoiDung'], emp_id, selected_date)
+                        (gio_vao.get(), gio_ra.get(), hours, trang_thai_db, self.view.user_info['MaNguoiDung'], emp_id, selected_date)
                     )
                 else:
                     insert_query = """
@@ -106,7 +124,7 @@ class QuanLyAttendanceLogic:
                     """
                     result = self.db.execute_query(
                         insert_query,
-                        (emp_id, selected_date, gio_vao.get(), gio_ra.get(), hours, status_var.get(), self.view.user_info['MaNguoiDung'])
+                        (emp_id, selected_date, gio_vao.get(), gio_ra.get(), hours, trang_thai_db, self.view.user_info['MaNguoiDung'])
                     )
                 
                 if result is not None:

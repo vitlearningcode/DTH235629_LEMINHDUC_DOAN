@@ -784,7 +784,7 @@ class QuanLy:
         table_frame.pack(fill=tk.BOTH, expand=True, pady=(10,0))
         
         columns = ("ID", "Họ tên", "Giờ vào", "Giờ ra", "Số giờ làm", "Trạng thái")
-        self.attendance_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=20)
+        self.attendance_tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=12)
         
         tree = self.attendance_tree
         for col in columns:
