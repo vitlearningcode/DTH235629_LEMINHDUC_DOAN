@@ -251,30 +251,64 @@ class Admin:
         return search_entry
     
     def show_dashboard(self):
-        """Hiển thị trang chủ (Chỉ UI)"""
+        """Hiển thị trang chủ (Cập nhật: 4 thẻ kích thước bằng nhau tuyệt đối)"""
         self.clear_content()
         
+        # 1. Tiêu đề
         tk.Label(
             self.content_frame,
             text="TRANG CHỦ ADMIN",
             font=("Arial", 20, "bold"),
             bg=self.bg_color,
             fg="#003366"
-        ).pack(pady=20)
+        ).pack(pady=(0, 20))
         
+        # 2. Khung chứa thống kê
         stats_frame = tk.Frame(self.content_frame, bg=self.bg_color)
-        stats_frame.pack(pady=20)
+        stats_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
         stats = self.dashboard_logic.get_dashboard_stats()
         
+        # 3. Cấu hình lưới (QUAN TRỌNG: Thêm uniform="group_name")
+        # uniform="cols": Ép tất cả các cột có cùng tag "cols" phải rộng bằng nhau
+        stats_frame.grid_columnconfigure(0, weight=1, uniform="cols")
+        stats_frame.grid_columnconfigure(1, weight=1, uniform="cols")
+        
+        # uniform="rows": Ép tất cả các hàng có cùng tag "rows" phải cao bằng nhau
+        stats_frame.grid_rowconfigure(0, weight=1, uniform="rows")
+        stats_frame.grid_rowconfigure(1, weight=1, uniform="rows")
+        
         colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A"]
+        
         for i, (label, value) in enumerate(stats.items()):
-            card = tk.Frame(stats_frame, bg=colors[i % len(colors)], width=250, height=150)
-            card.grid(row=i//2, column=i%2, padx=20, pady=20)
-            card.pack_propagate(False)
+            # Tạo thẻ (Card)
+            card = tk.Frame(stats_frame, bg=colors[i % len(colors)], relief="raised", bd=2)
             
-            tk.Label(card, text=label, font=("Arial", 12, "bold"), bg=colors[i % len(colors)], fg="white").pack(pady=10)
-            tk.Label(card, text=str(value), font=("Arial", 24, "bold"), bg=colors[i % len(colors)], fg="white").pack()
+            # Đặt vào lưới
+            card.grid(row=i//2, column=i%2, padx=20, pady=20, sticky="nsew")
+            
+            # --- FRAME CON ĐỂ CĂN GIỮA NỘI DUNG ---
+            # Frame này chứa chữ và luôn nằm giữa tâm thẻ
+            content_frame = tk.Frame(card, bg=colors[i % len(colors)])
+            content_frame.place(relx=0.5, rely=0.5, anchor="center")
+            
+            # Label tiêu đề
+            tk.Label(
+                content_frame, 
+                text=label, 
+                font=("Arial", 16, "bold"), 
+                bg=colors[i % len(colors)], 
+                fg="white"
+            ).pack(pady=5)
+            
+            # Label giá trị
+            tk.Label(
+                content_frame, 
+                text=str(value), 
+                font=("Arial", 30, "bold"), 
+                bg=colors[i % len(colors)], 
+                fg="white"
+            ).pack(pady=5)
     
     def manage_employees(self):
         """Hiển thị UI Quản lý nhân viên (ĐÃ NÂNG CẤP VỚI PANEL CHI TIẾT)"""
