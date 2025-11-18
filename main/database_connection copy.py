@@ -2,7 +2,8 @@
 # FILE: database_connection.py
 # MÔ TẢ: Module kết nối SQL SERVER (Đã sửa đổi cho pyodbc)
 # =================================================================
-
+#tiến hành đổi tên file thành database_connection copy.py
+# sau đó nhập tên sever và database vào trong file này để tránh xung đột khi chạy nhiều file cùng lúc
 import pyodbc
 
 class DatabaseConnection:
