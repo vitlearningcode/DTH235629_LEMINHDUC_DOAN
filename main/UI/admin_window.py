@@ -559,7 +559,9 @@ class Admin:                                 # CHÚ THÍCH: khai báo class Admi
         self.details_price.bind("<KeyRelease>", self.prod_logic.check_for_changes)  # CHÚ THÍCH: bind giá
         self.details_stock.bind("<KeyRelease>", self.prod_logic.check_for_changes)  # CHÚ THÍCH: bind tồn kho
         self.details_loai.bind("<<ComboboxSelected>>", self.prod_logic.check_for_changes)  # CHÚ THÍCH: bind combobox loại
-
+        self.details_hang.bind("<<ComboboxSelected>>", self.prod_logic.check_for_changes)      # <--- MỚI THÊM
+        self.details_trangthai.bind("<<ComboboxSelected>>", self.prod_logic.check_for_changes) # <--- MỚI THÊM
+        
         # --- QUAN TRỌNG: GỌI LOGIC SAU KHI UI ĐÃ TẠO ---
         self.prod_logic.update_combobox_data() # Đổ dữ liệu vào combo  # CHÚ THÍCH: cập nhật dữ liệu cho các combobox
         self.prod_logic.load_products(self.product_tree) # Tải dữ liệu bảng  # CHÚ THÍCH: load danh sách sản phẩm lên tree
